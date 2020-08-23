@@ -124,6 +124,8 @@ void setMC33926(int pinDir, int pinPWM, int speed);
 // lawn sensor
 int measureLawnCapacity(int pinSend, int pinReceive);
 
+boolean sensorDetected(int sensorName);
+
 // real time drivers
 boolean readDS1307(datetime_t &dt);
 boolean setDS1307(datetime_t &dt);

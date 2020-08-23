@@ -341,6 +341,15 @@ int measureLawnCapacity(int pinSend, int pinReceive){
   return t;
 }
 
+boolean sensorDetected(int pinReceive) {
+  if (digitalRead(pinReceive)==LOW) {
+    return true;
+    //Console.println(F("sensorDetected is true"));
+  } else {
+    return false;
+    //Console.println(F("sensorDetected is false"));
+  }
+}
 
 // Returns the day of week (0=Sunday, 6=Saturday) for a given date
 int getDayOfWeek(int month, int day, int year, int CalendarSystem)
