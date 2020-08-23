@@ -12,7 +12,7 @@ void Robot::setMotorMowRPMState(boolean motorMowRpmState){
 
 
 // calculate map position by odometry sensors
-void Robot::calcOdometry(){
+void Robot::calcOdometry(boolean useIMUforTheta){
   if ((!odometryUse) || (millis() < nextTimeOdometry)) return;    
   nextTimeOdometry = millis() + 100;
 
@@ -27,9 +27,31 @@ void Robot::calcOdometry(){
   double left_cm = ((double)ticksLeft) / ((double)odometryTicksPerCm);
   double right_cm = ((double)ticksRight) / ((double)odometryTicksPerCm);  
   double avg_cm  = (left_cm + right_cm) / 2.0;
-  double wheel_theta = (left_cm - right_cm) / ((double)odometryWheelBaseCm);    
-  odometryTheta = scalePI(odometryTheta - wheel_theta); 
-  
+  double wheel_theta = (left_cm - right_cm) / ((double)odometryWheelBaseCm);
+
+  if (useIMUforTheta) {
+    // Use IMU to provide Theta (rotation)
+    // http://seattlerobotics.org/encoder/200610/Article3/IMU%20Odometry,%20by%20David%20Anderson.htm
+    // Incorporating the heading from the IMU is simply a matter of reading the Yaw value from the imum scaling it appropriately, 
+    // and substituting the value so obtained for the theta value normally calculated from the wheel encoders. 
+    /* read the YAW value from the imu struct and convert to radians */
+
+    // imu.com.x    (N)=1.0   (E)=0    (S)=-1.0   (W)=0  
+    odometryTheta = (atan2(imu.com.x, imu.com.y)/-0.0174);
+    if (odometryTheta<0) odometryTheta+=360; // degrees
+
+    // Adjust for 14 degree offset in our yard
+    odometryTheta = odometryTheta + 14;
+    // Flip because compass is mounted backwards?
+    odometryTheta = odometryTheta + 180;
+    while (odometryTheta>360) odometryTheta-=360;
+
+    // Convert to radians
+    odometryTheta = odometryTheta * PI/180;
+    
+  } else {
+    odometryTheta = scalePI(odometryTheta - wheel_theta); // -PI to +PI
+  }
 	// calculate RPM 
   motorLeftRpmCurr  = double ((( ((double)ticksLeft) / ((double)odometryTicksPerRevolution)) / ((double)(millis() - lastMotorRpmTime))) * 60000.0); 
   motorRightRpmCurr = double ((( ((double)ticksRight) / ((double)odometryTicksPerRevolution)) / ((double)(millis() - lastMotorRpmTime))) * 60000.0);                      
@@ -37,8 +59,13 @@ void Robot::calcOdometry(){
   
   // ROS coordinate system (X+ forward, Y+ left, Z+ up)  
   // FIXME: theta should be old theta, not new theta?
-  odometryY += avg_cm * sin(odometryTheta); 
-  odometryX += avg_cm * cos(odometryTheta); 
+  if (useIMUforTheta) {
+    odometryX += (avg_cm * cos(odometryTheta));
+    odometryY += (avg_cm * sin(odometryTheta));
+  } else {
+    odometryX += (avg_cm * sin(odometryTheta));
+    odometryY += (avg_cm * cos(odometryTheta));    
+  }
 }
 
 
