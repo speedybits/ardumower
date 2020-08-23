@@ -100,14 +100,15 @@ Mower::Mower(){
   rainUse                    = 0;          // use rain sensor?
   
   // ------ sonar ------------------------------------
-  sonarUse                   = 0;          // use ultra sonic sensor? (WARNING: robot will slow down, if enabled but not connected!)
+  sonarUse                   = 1;          // use ultra sonic sensor? (WARNING: robot will slow down, if enabled but not connected!)
   sonarLeftUse               = 1;
   sonarRightUse              = 1;
   sonarCenterUse             = 0;
-  sonarTriggerBelow          = 0;       // ultrasonic sensor trigger distance (0=off)
-	sonarSlowBelow             = 100;     // ultrasonic sensor slow down distance
+  sonarTriggerBelow          = 30;       // ultrasonic sensor trigger distance (0=off)
+	sonarSlowBelow             = 70;     // ultrasonic sensor slow down distance
   
   // ------ perimeter ---------------------------------
+  perimeterVirtualUse        = 1;
   perimeterUse               = 0;          // use perimeter?    
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
   perimeterOutRollTimeMax    = 2000;       // roll time max after perimeter out (ms)
@@ -143,13 +144,13 @@ Mower::Mower(){
   imuRollPID.Kd              = 0;  
   
   // ------ model R/C ------------------------------------
-  remoteUse                  = 1;          // use model remote control (R/C)?
+  remoteUse                  = 0;          // use model remote control (R/C)?
   
   // ------ battery -------------------------------------
   #if defined (ROBOT_ARDUMOWER)
-    batMonitor                 = 1;          // monitor battery and charge voltage?
-		batSwitchOffIfBelow        = 21.7;       // switch off battery if below voltage (Volt)
-		batGoHomeIfBelow           = 23.7;       // drive home voltage (Volt)  	
+    batMonitor                 = 0;          // monitor battery and charge voltage?
+		batSwitchOffIfBelow        = 20.0;       // switch off battery if below voltage (Volt)
+		batGoHomeIfBelow           = 20.5;       // drive home voltage (Volt)  	
 		startChargingIfBelow       = 32.0;      // start charging if battery Voltage is below (99999=disabled)
 		batFull                    = 29.4;      // battery reference Voltage (fully charged) PLEASE ADJUST IF USING A DIFFERENT BATTERY VOLTAGE! FOR a 12V SYSTEM TO 14.4V		
 		batFullCurrent             = 0.1;       // current flowing when battery is fully charged	(amp), (-99999=disabled)	
@@ -189,9 +190,9 @@ Mower::Mower(){
   odometryUse                = 1;          // use odometry?    
   
 	#if defined (ROBOT_ARDUMOWER)
-	  odometryTicksPerRevolution = 1060;       // encoder ticks per one full resolution (without any divider)
-		wheelDiameter              = 250;        // wheel diameter (mm)
-		odometryWheelBaseCm        = 36;         // wheel-to-wheel distance (cm)
+	  odometryTicksPerRevolution = 707;       // encoder ticks per one full resolution (without any divider)
+		wheelDiameter              = 210;        // wheel diameter (mm)
+		odometryWheelBaseCm        = 48;         // wheel-to-wheel distance (cm)
 		odoLeftRightCorrection     = true;       // left-right correction for straight lines?
   #else  // ROBOT_MINI		
 		odometryTicksPerRevolution = 20;      // encoder ticks per one full resolution
@@ -447,9 +448,9 @@ void Mower::setup(){
   pinMode(pinOdometryRight2, INPUT_PULLUP);  
   
   // user switches
-  pinMode(pinUserSwitch1, OUTPUT);
-  pinMode(pinUserSwitch2, OUTPUT);
-  pinMode(pinUserSwitch3, OUTPUT);   
+  pinMode(pinUserSwitch1, INPUT);
+  pinMode(pinUserSwitch2, INPUT);
+  pinMode(pinUserSwitch3, INPUT);   // This will be our magnet sensor
   
   // other
   pinMode(pinVoltageMeasurement, INPUT);  

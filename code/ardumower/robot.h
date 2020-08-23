@@ -231,12 +231,19 @@ class Robot
     boolean odometryRightLastState;
     boolean odometryRightLastState2;
     float odometryTheta; // theta angle (radiant)
+    float odometryThetaAdjusted; // odometryTheta with offset
+    float theta_global;
+    float last_theta;
+    float imu_theta;
     float odometryX ;   // X map position (cm)
-    float odometryY ;   // Y map position (cm)    
+    float odometryY ;   // Y map position (cm)
+    float closestMarkerX; // X position of closest marker (cm)
+    float closestMarkerY; // Y position of closest marker (cm)
     float motorLeftRpmCurr ; // left wheel rpm    
     float motorRightRpmCurr ; // right wheel rpm    
     unsigned long lastMotorRpmTime ;     
     unsigned long nextTimeOdometry ;
+    //unsigned long nextTimeProcessOdometry;
     unsigned long nextTimeOdometryInfo ; 
 		boolean odoLeftRightCorrection;
     // -------- RC remote control state -----------------    
@@ -361,7 +368,8 @@ class Robot
     unsigned long nextTimeCheckTilt; // check if
     // ------- perimeter state --------------------------
     Perimeter perimeter;
-    char perimeterUse       ;      // use perimeter?    
+    char perimeterUse       ;      // use perimeter?
+    bool perimeterVirtualUse;      // use virtual perimeter (odometry/compass w/ keep-out zones)
     int perimeterOutRollTimeMax ;   
     int perimeterOutRollTimeMin ;
     int perimeterOutRevTime  ;   
@@ -377,6 +385,7 @@ class Robot
     int MaxSpeedperiPwm;
     int perimeterMagMaxValue;
     boolean perimeterInside ;      // is inside perimeter?
+    boolean virtualPerimeterInside;
     unsigned long perimeterTriggerTime; // time to trigger perimeter transition (timeout)
     int perimeterTriggerTimeout;   // perimeter trigger timeout (ms)
     unsigned long perimeterLastTransitionTime;
@@ -534,6 +543,11 @@ class Robot
     boolean rmcsTriggerIMU;
     boolean rmcsTriggerFreeWheel;
     boolean rmcsTriggerRain;
+
+    int markerX[3];
+    int markerY[3];
+    int NUM_MARKERS = 3;
+
     // --------------------------------------------------
     Robot();
     // robot setup
@@ -562,7 +576,12 @@ class Robot
     
     // GPS
     virtual void processGPSData();
-    
+
+    // Virtual fence
+    virtual void checkVirtualPerimeterBoundary();
+    virtual void adjustRobotXY();
+    virtual int getDistanceToObject(int x, int y);
+
     // read hardware sensor (HAL)
     virtual int readSensor(char type){}    
     
@@ -648,7 +667,7 @@ protected:
 		virtual void testRTC();
     virtual void setDefaults();    
     virtual void receiveGPSTime();
-    virtual void calcOdometry();
+    virtual void calcOdometry(boolean useIMUforTheta);
     virtual void menu();
     virtual void commsMenuBT();
     virtual void commsMenuWifi();
