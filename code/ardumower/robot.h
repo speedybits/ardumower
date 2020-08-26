@@ -385,7 +385,6 @@ class Robot
     int MaxSpeedperiPwm;
     int perimeterMagMaxValue;
     boolean perimeterInside ;      // is inside perimeter?
-    boolean virtualPerimeterInside;
     unsigned long perimeterTriggerTime; // time to trigger perimeter transition (timeout)
     int perimeterTriggerTimeout;   // perimeter trigger timeout (ms)
     unsigned long perimeterLastTransitionTime;
@@ -578,7 +577,7 @@ class Robot
     virtual void processGPSData();
 
     // Virtual fence
-    virtual void checkVirtualPerimeterBoundary();
+    virtual bool insideVirtualPerimeter();
     virtual void adjustRobotXY();
     virtual int getDistanceToObject(int x, int y);
 

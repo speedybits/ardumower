@@ -141,7 +141,6 @@ Robot::Robot(){
   perimeterMag = 1;
   perimeterMagMedian.add(perimeterMag);
   perimeterInside = true;
-  virtualPerimeterInside = true;
   perimeterCounter = 0;  
   perimeterLastTransitionTime = 0;
   perimeterTriggerTime = 0;
@@ -471,11 +470,12 @@ void Robot::readSensors(){
     if (perimeterUse) {
       if ((perimeter.isInside(0) != perimeterInside)){      
         perimeterCounter++;
-  		setSensorTriggered(SEN_PERIM_LEFT);
+  		  setSensorTriggered(SEN_PERIM_LEFT);
         perimeterLastTransitionTime = millis();
         perimeterInside = perimeter.isInside(0);
       }
     } else if (perimeterVirtualUse) {
+      boolean virtualPerimeterInside = insideVirtualPerimeter();
       if (virtualPerimeterInside!=perimeterInside) {
         perimeterCounter++;
         setSensorTriggered(SEN_PERIM_LEFT);
@@ -977,18 +977,18 @@ void Robot::checkPerimeterFind(){
       }
     } else {
       // we are outside, now roll to get inside
-      if (perimeterVirtualUse) {
-        motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;
-        motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 2;
-      } else {
+      //if (perimeterVirtualUse) {
+      //  motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;
+      //  motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 2;
+      //} else {
         motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.5;
         motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
-      }
+      //}
     }
   }
 }
 
-void Robot::checkVirtualPerimeterBoundary()
+bool Robot::insideVirtualPerimeter()
 {
   //if ((millis() < nextTimeProcessOdometry)) return;
   //nextTimeProcessOdometry = millis() + 100;
@@ -1021,18 +1021,18 @@ void Robot::checkVirtualPerimeterBoundary()
   int TRAMPOLINE_NORTH = 400;
   
   if ( (odometryX < WEST_BOUNDARY) || (odometryY > NORTH_BOUNDARY) || (odometryX > EAST_BOUNDARY) || (odometryY < SOUTH_BOUNDARY) ) {
-    virtualPerimeterInside = false;
+    return false;
   } else if ((odometryX > CIRCLE_WEST) && (odometryY < CIRCLE_NORTH)) {
     // Circular Garden
-    virtualPerimeterInside = false;
+    return false;
   } else if ((odometryX < TRAMPOLINE_EAST) && (odometryY < TRAMPOLINE_NORTH)) {
     // Trampoline
-    virtualPerimeterInside = false;
+    return false;
   } else if ((odometryX > 300) && (odometryY > CIRCLE_NORTH)) {
     // North of circle garden
-    virtualPerimeterInside = false;
+    return false;
   } else {
-    virtualPerimeterInside = true;
+    return true;
   }
 }
 
