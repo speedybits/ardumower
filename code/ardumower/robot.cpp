@@ -909,9 +909,6 @@ void Robot::checkBumpersPerimeter(){
 
 // check perimeter as a boundary
 void Robot::checkPerimeterBoundary(){
-  if (perimeterVirtualUse) {
-    checkVirtualPerimeterBoundary();
-  }
   if (!perimeterUse && !perimeterVirtualUse) return;
   if (millis() >= nextTimeRotationChange){
       nextTimeRotationChange = millis() + 30000;
