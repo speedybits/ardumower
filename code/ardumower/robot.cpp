@@ -974,13 +974,13 @@ void Robot::checkPerimeterFind(){
       }
     } else {
       // we are outside, now roll to get inside
-      //if (perimeterVirtualUse) {
-      //  motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;
-      //  motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 2;
-      //} else {
+      if (perimeterVirtualUse) {
+        motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;
+        motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 2;
+      } else {
         motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.5;
         motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
-      //}
+      }
     }
   }
 }
