@@ -109,6 +109,7 @@ Mower::Mower(){
   
   // ------ perimeter ---------------------------------
   perimeterVirtualUse        = 1;
+  perimeterVirtualOffset     = 14;         // Degrees offset. Want Odometry Y axis to line up with 0 Degrees North.
   perimeterUse               = 0;          // use perimeter?    
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
   perimeterOutRollTimeMax    = 2000;       // roll time max after perimeter out (ms)
@@ -135,6 +136,7 @@ Mower::Mower(){
   
   // ------  IMU (compass/accel/gyro) ----------------------
   imuUse                     = 1;          // use IMU?
+  imuUseForTheta             = 1;          // use IMU for Theta calculation for less odometry error
   imuCorrectDir              = 0;          // correct direction by compass?
   imuDirPID.Kp               = 5.0;        // direction PID controller
   imuDirPID.Ki               = 1.0;
