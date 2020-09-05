@@ -356,7 +356,8 @@ class Robot
     char dropcontact ; // contact 0-openers 1-closers                                                                                 // Dropsensor Kontakt 0 für Öffner - 1 Schließer
     // ------- IMU state --------------------------------
     IMU imu;
-    char imuUse            ;       // use IMU? 
+    char imuUse            ;       // use IMU?
+    char imuUseForTheta    ;       // use IMU for odometry theta for reduced error 
     char imuCorrectDir     ;       // correct direction by compass?
     PID imuDirPID  ;    // direction PID controller
     PID imuRollPID ;    // roll PID controller        
@@ -370,6 +371,7 @@ class Robot
     Perimeter perimeter;
     char perimeterUse       ;      // use perimeter?
     bool perimeterVirtualUse;      // use virtual perimeter (odometry/compass w/ keep-out zones)
+    int perimeterVirtualOffset;
     int perimeterOutRollTimeMax ;   
     int perimeterOutRollTimeMin ;
     int perimeterOutRevTime  ;   
@@ -666,7 +668,7 @@ protected:
 		virtual void testRTC();
     virtual void setDefaults();    
     virtual void receiveGPSTime();
-    virtual void calcOdometry(boolean useIMUforTheta);
+    virtual void calcOdometry();
     virtual void menu();
     virtual void commsMenuBT();
     virtual void commsMenuWifi();

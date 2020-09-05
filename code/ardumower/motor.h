@@ -12,7 +12,7 @@ void Robot::setMotorMowRPMState(boolean motorMowRpmState){
 
 
 // calculate map position by odometry sensors
-void Robot::calcOdometry(boolean useIMUforTheta){
+void Robot::calcOdometry(){
   if ((!odometryUse) || (millis() < nextTimeOdometry)) return;    
   nextTimeOdometry = millis() + 100;
 
@@ -29,7 +29,7 @@ void Robot::calcOdometry(boolean useIMUforTheta){
   double avg_cm  = (left_cm + right_cm) / 2.0;
   double wheel_theta = (left_cm - right_cm) / ((double)odometryWheelBaseCm);
 
-  if (useIMUforTheta) {
+  if (imuUseForTheta || perimeterVirtualUse) {
     // Use IMU to provide Theta (rotation)
     // http://seattlerobotics.org/encoder/200610/Article3/IMU%20Odometry,%20by%20David%20Anderson.htm
     // Incorporating the heading from the IMU is simply a matter of reading the Yaw value from the imum scaling it appropriately, 
@@ -40,8 +40,12 @@ void Robot::calcOdometry(boolean useIMUforTheta){
     odometryTheta = (atan2(imu.com.x, imu.com.y)/-0.0174);
     if (odometryTheta<0) odometryTheta+=360; // degrees
 
-    // Adjust for 14 degree offset in our yard
-    odometryTheta = odometryTheta + 14;
+    
+    if (perimeterVirtualUse) {
+      // Add offset for Virtual perimeter so that perimeter Y axis lines up with 0 degrees North
+      odometryTheta = odometryTheta + perimeterVirtualOffset;
+    }
+  
     // Flip because compass is mounted backwards?
     odometryTheta = odometryTheta + 180;
     while (odometryTheta>360) odometryTheta-=360;
@@ -59,7 +63,7 @@ void Robot::calcOdometry(boolean useIMUforTheta){
   
   // ROS coordinate system (X+ forward, Y+ left, Z+ up)  
   // FIXME: theta should be old theta, not new theta?
-  if (useIMUforTheta) {
+  if (imuUseForTheta) {
     odometryX += (avg_cm * cos(odometryTheta));
     odometryY += (avg_cm * sin(odometryTheta));
   } else {

@@ -1472,7 +1472,7 @@ void Robot::loop()  {
   checkBattery(); 
   checkIfStuck();
   checkRobotStats();
-  calcOdometry(true);
+  calcOdometry();
   checkOdometryFaults();    
   checkButton(); 
   motorMowControl(); 
