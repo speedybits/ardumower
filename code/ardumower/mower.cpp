@@ -100,9 +100,9 @@ Mower::Mower(){
   rainUse                    = 0;          // use rain sensor?
   
   // ------ sonar ------------------------------------
-  sonarUse                   = 1;          // use ultra sonic sensor? (WARNING: robot will slow down, if enabled but not connected!)
-  sonarLeftUse               = 1;
-  sonarRightUse              = 1;
+  sonarUse                   = 0;          // use ultra sonic sensor? (WARNING: robot will slow down, if enabled but not connected!)
+  sonarLeftUse               = 0;
+  sonarRightUse              = 0;
   sonarCenterUse             = 0;
   sonarTriggerBelow          = 30;       // ultrasonic sensor trigger distance (0=off)
 	sonarSlowBelow             = 70;     // ultrasonic sensor slow down distance
@@ -110,6 +110,7 @@ Mower::Mower(){
   // ------ perimeter ---------------------------------
   perimeterVirtualUse        = 1;
   perimeterVirtualOffset     = 14;         // Degrees offset. Want Odometry Y axis to line up with 0 Degrees North.
+  perimeterVirtualIndoorTest = 1;
   perimeterUse               = 0;          // use perimeter?    
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
   perimeterOutRollTimeMax    = 2000;       // roll time max after perimeter out (ms)
@@ -192,9 +193,9 @@ Mower::Mower(){
   odometryUse                = 1;          // use odometry?    
   
 	#if defined (ROBOT_ARDUMOWER)
-	  odometryTicksPerRevolution = 707;       // encoder ticks per one full resolution (without any divider)
-		wheelDiameter              = 210;        // wheel diameter (mm)
-		odometryWheelBaseCm        = 48;         // wheel-to-wheel distance (cm)
+	  odometryTicksPerRevolution = 700;       // encoder ticks per one full revolution (without any divider)
+		wheelDiameter              = 191;        // wheel diameter (mm)
+		odometryWheelBaseCm        = 43;         // wheel-to-wheel distance (cm)
 		odoLeftRightCorrection     = true;       // left-right correction for straight lines?
   #else  // ROBOT_MINI		
 		odometryTicksPerRevolution = 20;      // encoder ticks per one full resolution

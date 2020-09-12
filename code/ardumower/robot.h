@@ -372,6 +372,8 @@ class Robot
     char perimeterUse       ;      // use perimeter?
     bool perimeterVirtualUse;      // use virtual perimeter (odometry/compass w/ keep-out zones)
     int perimeterVirtualOffset;
+    unsigned long perimeterVirtualMarkerTimeout;
+    bool perimeterVirtualIndoorTest;
     int perimeterOutRollTimeMax ;   
     int perimeterOutRollTimeMin ;
     int perimeterOutRevTime  ;   
@@ -379,6 +381,7 @@ class Robot
     int perimeterTrackRevTime ; // perimeter tracking reverse time (ms)
     PID perimeterPID ;             // perimeter PID controller
     int perimeterMag ;             // perimeter magnitude
+    int virtualPerimeterMag;
     RunningMedian perimeterMagMedian = RunningMedian(300);
     float PeriCoeffAccel;
     int leftSpeedperi;
