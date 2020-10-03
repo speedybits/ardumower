@@ -376,7 +376,7 @@ class Robot
     bool perimeterVirtualIndoorTest;
     int maxIndex ;
     int arraySize ;
-    float lastDistanceToZeroZero;
+    float lastDistanceToCenterOfYard;
     int perimeterOutRollTimeMax ;   
     int perimeterOutRollTimeMin ;
     int perimeterOutRevTime  ;   
