@@ -35,6 +35,8 @@
 #define ADDR_ERR_COUNTERS 400
 #define ADDR_ROBOT_STATS 800
 
+
+
 const char* stateNames[] ={"OFF ", "ROS", "RC  ", "FORW", "ROLL", "REV ", "CIRC", "ERR ", "PFND", "PTRK", "PROL", "PREV", "STAT", "CHARG", "STCHK",
   "STREV", "STROL", "STFOR", "MANU", "ROLW", "POUTFOR", "POUTREV", "POUTROLL", "TILT", "BUMPREV", "BUMPFORW"};
 
@@ -47,6 +49,11 @@ const char* mowPatternNames[] = {"RAND", "LANE", "BIDIR"};
 
 const char* consoleModeNames[] ={"sen_counters", "sen_values", "perimeter", "off"}; 
 
+// asdf
+static const int fencePosts[] [2] = {  
+  // Put the name of the file with the complete Path
+  #include "virtualPerimeter.h" 
+};
 
 // --- split robot class ----
 #include "battery.h"
@@ -58,6 +65,7 @@ const char* consoleModeNames[] ={"sen_counters", "sen_values", "perimeter", "off
 #include "modelrc.h"
 #include "settings.h"
 #include "timer.h"
+
 // -----------------------------
 
 
@@ -70,8 +78,6 @@ float Robot::voltageDividerUges(float R1, float R2, float U2){
 float Robot::ADC2voltage(float ADCvalue){
   return (ADCvalue /1023.0 * IOREF);   // ADCman works @ 10 bit
 }  
-
-
 
 Robot::Robot(){
   name = "Generic";
@@ -89,7 +95,7 @@ Robot::Robot(){
   odometryLeft = odometryRight = 0;	
   odometryLeftLastState = odometryLeftLastState2 = odometryRightLastState = odometryRightLastState2 = LOW;
   odometryTheta = odometryX = odometryY = 0;
-
+  
   motorRightRpmCurr = motorLeftRpmCurr = 0;
   lastMotorRpmTime = 0;
   lastSetMotorSpeedTime = 0;
@@ -278,7 +284,52 @@ void Robot::setUserSwitches(){
   setActuator(ACT_USER_SW3, userSwitch3);     
 }
 
-void Robot::setup()  {     
+void Robot::setup()  {
+/* This examples illustrates how to import numeric data from a separate Text file
+
+  By Luca Brigatti - 2012 
+  witht he help of the folks in the Arduino programming forum.
+
+  Note: Leaving the first dimension empty: data[][2]
+  and using: sizeof(data) 
+  to calculate the size of the array in bytes eliminates the need to know beforehand 
+  how many values are there in the file.
+  
+  The operation: maxIndex = sizeof(data) / 4 - 1
+  return the highest index number of the first dimension:  data[maxIndex][2]
+  The denominator (4 in this case) is the product of the number of bytes per data type (2 bytes per integer) 
+times the size of the second dimension ([2] in this case)
+  
+  The text file being read: "numbers2.hh"
+  contains something like that: 
+  ________________________
+  // Example of bidimensional numeric data array
+  // The actual numbers can be any int (if the data array is int)
+ {1,1},
+ {-2,4},
+ {3,-9},
+ {4,}, // Second element here will be 0, Like:  {4,0},
+ {-5,-25},
+......
+_________________________________
+
+Note: {,4},   i.e leaving the first place empty is NOT allowed.  
+*/
+  // asdf
+ arraySize=sizeof(fencePosts);  // Gets the size of the array in bytes
+ maxIndex = (arraySize/4 - 1)/2; // Size /2 (bytes in an int) /2 (for a bidimensional array) - 1 (as index starts at 0)   
+ // Print dimensions of the array
+ Console.print("Array Size (bytes): ");
+ Console.println (arraySize);
+ Console.print ("# of rows: "); // reported as 96. Should be 48
+ Console.println(maxIndex+1);
+// Print all the data in the array,
+ for (byte i=0; i<maxIndex; i++) {
+   Serial.print (fencePosts[i][0]);
+   Serial.print (" , ");
+   Serial.println (fencePosts[i][1]);
+ }
+
   setDefaultTime();
   setMotorPWM(0, 0, false);
   loadSaveErrorCounters(true);
@@ -398,8 +449,8 @@ void Robot::checkButton(){
             odometryX = -30;
             odometryY = 51;
           } else {
-            odometryX = -200;
-            odometryY = 200;
+            odometryX = 0;
+            odometryY = 0;
           }
           //motorMowModulate = true;                     
           mowPatternCurr = MOW_RANDOM;   
@@ -995,19 +1046,60 @@ void Robot::checkPerimeterFind(){
 boolean Robot::insideVirtualPerimeter()
 {
 
-  if (millis() >= perimeterVirtualMarkerTimeout){
-    setNextState(STATE_OFF, 0);
-  }
+  //if (millis() >= perimeterVirtualMarkerTimeout){
+  //  setNextState(STATE_OFF, 0);
+  //}
 
+  // Update position if we pass over a magnet
   if (sensorDetected(pinUserSwitch3)) {
-    //setMotorPWM( 0, 0, false );
     reverseOrBidir(LEFT);
-    //Console.println(F("sensorDetected is true"));
     adjustRobotXY();
     beep(7, true);
-    //nextTimeProcessOdometry = millis() + 5000;
   }
 
+  bool closeToFence = false;
+  bool inside = false;
+  double distanceToClosestFencePost = 100000;
+  int closestFencePost = 0;
+  
+  // asdf
+  // Determine if we are close to one of the fenceposts
+  for (int i=0; i < maxIndex; i++) {
+    int fenceX = fencePosts[i][0];
+    int fenceY = fencePosts[i][1];
+    double distanceToFencePost = getDistanceToObject(fenceX, fenceY);
+    if (distanceToFencePost < distanceToClosestFencePost) {
+      distanceToClosestFencePost = distanceToFencePost;
+      closestFencePost = i;
+    }
+  }
+  if (distanceToClosestFencePost < 100) {
+    closeToFence = true;
+    Console.print(F("Close to fence post: "));
+    Console.println(closestFencePost);
+    Console.print(F("OdometryXY   "));
+    Console.print(odometryX);
+    Console.print(F(" , "));
+    Console.println(odometryY);
+  } 
+  //else if (distanceToClosestMarker > 200) {
+  //  setNextState(STATE_OFF, 0);
+  //}
+
+  // See if we are inside or leaving the fenced area
+  double currentDistanceToCenterOfYard = getDistanceToObject(-300,0);
+  if (closeToFence && (currentDistanceToCenterOfYard > lastDistanceToCenterOfYard)) {
+    // leaving perimeter
+    inside = false;
+    Console.println(F("Leaving Fence"));
+  } else {
+    inside = true;
+  }
+
+  lastDistanceToCenterOfYard = currentDistanceToCenterOfYard;
+  return inside;
+
+  /*
   // Lookup table to determine if we are outside X/Y
   // 100cm = 1m
   // Starting point should be at the first septic disc
@@ -1033,30 +1125,34 @@ boolean Robot::insideVirtualPerimeter()
     NORTH_BOUNDARY = 800; // 17m
     WEST_BOUNDARY = -400; //-1500; // 10m
     SOUTH_BOUNDARY = 20;
-    EAST_BOUNDARY = 700; // Near rear pool entrance
+    EAST_BOUNDARY = 100;
     CIRCLE_WEST = 100;
     CIRCLE_NORTH = 900;
     TRAMPOLINE_EAST = -400;
     TRAMPOLINE_NORTH = 400;
   }
 
-  if (odometryY > NORTH_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryY-NORTH_BOUNDARY);
+  return true;
+  
+  if (odometryX > NORTH_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryX-NORTH_BOUNDARY);
     return false;
-  } else if (odometryY < SOUTH_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryY-SOUTH_BOUNDARY);
+  } else if (odometryX < SOUTH_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryX-SOUTH_BOUNDARY);
     return false;
-  } else if (odometryX > EAST_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryX-EAST_BOUNDARY);
+  } else if (odometryY > EAST_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryY-EAST_BOUNDARY);
     return false;
-  } else if (odometryX < WEST_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryX-WEST_BOUNDARY);    
+  } else if (odometryY < WEST_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryY-WEST_BOUNDARY);    
     return false;
   } else {
     virtualPerimeterMag = virtualPerimeterMag - 100;
     if (virtualPerimeterMag < -1400) virtualPerimeterMag = -1400;
     return true;
   }
+  */
+
 }
 
 void Robot::adjustRobotXY() {
@@ -1067,20 +1163,20 @@ void Robot::adjustRobotXY() {
   int closestMarker = 0;
   int distanceToMarker = 0;
 
-  markerX[0] = 0;
-  markerY[0] = 20;
+  markerY[0] = 281;
+  markerX[0] = 226;
 
-  markerX[1] = 0;
-  markerY[1] = 400;
+  markerY[1] = 625;
+  markerX[1] = -72;
 
-  markerX[2] = -400;
-  markerY[2] = 600;
+  markerY[2] = 5000;
+  markerX[2] = 5000;
 
   for (int i=0; i<NUM_MARKERS; i++) {
-    int distX = abs(odometryX-markerX[i]);
-    int distY = abs(odometryY-markerY[i]);
+    //int distX = abs(odometryX-markerX[i]);
+    //int distY = abs(odometryY-markerY[i]);
 
-    distanceToMarker = getDistanceToObject(distX, distY);
+    distanceToMarker = getDistanceToObject(markerX[i], markerY[i]);
     if (distanceToMarker < closestMarkerDistance) {
       // This is the closest marker
       closestMarkerDistance = distanceToMarker;
@@ -1100,9 +1196,12 @@ void Robot::adjustRobotXY() {
   //}
 }
 
-int Robot::getDistanceToObject(int x, int y) {
-  int distance = 5000;
-  distance = abs(sqrt(sq(x) + sq(y)));
+int Robot::getDistanceToObject(int objectX, int objectY) {
+  int distance;
+  int distX = abs(odometryX-objectX);
+  int distY = abs(odometryY-objectY);
+
+  distance = abs(sqrt(sq(distX) + sq(distY)));
   return distance;
 }
 
@@ -1612,8 +1711,26 @@ void Robot::loop()  {
         if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
         if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
           else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;                            
-      }             
-      checkErrorCounter();    
+      }
+      /*
+      if (perimeterVirtualUse && training) {
+        Ymax = odometryY;
+        Xmax = odometryX;
+      }
+      else if (perimeterVirtualUse && batVoltage < 22.0) {
+        if (odometryX < -300) {
+          Xmax = odometryX;
+        }
+        if (odometryY < 300) {
+          Ymax = odometryY;
+        }
+        if (getDistanceToObject(0, 0) < 20) {
+          // We are home and we should stop
+          setNextState(STATE_OFF, 0);
+        }
+      }
+      */
+      checkErrorCounter();
       checkTimer();
       checkRain();
       checkCurrent();
@@ -1878,11 +1995,3 @@ void Robot::loop()  {
                              
   loopsPerSecCounter++;  
 }
-
-
-
-
-
-
-
-

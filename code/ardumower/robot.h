@@ -374,6 +374,9 @@ class Robot
     int perimeterVirtualOffset;
     unsigned long perimeterVirtualMarkerTimeout;
     bool perimeterVirtualIndoorTest;
+    int maxIndex ;
+    int arraySize ;
+    float lastDistanceToZeroZero;
     int perimeterOutRollTimeMax ;   
     int perimeterOutRollTimeMin ;
     int perimeterOutRevTime  ;   

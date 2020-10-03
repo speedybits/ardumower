@@ -42,8 +42,8 @@ void Robot::calcOdometry(){
     // Take 4 samples within 200ms, instead of 1 sample every 100ms
     odometryTheta = (atan2(imu.com.x, imu.com.y)); // 0.00 to 3.14 or -0.00 to -3.14
     //odometryTheta = scalePI(imu.ypr.yaw); // imu.ypr.yaw is -3.14 to +3.14
-    Console.print(F("odometryTheta "));
-    Console.println(odometryTheta);
+    //Console.print(F("odometryTheta "));
+    //Console.println(odometryTheta);
 
   } else {
     odometryTheta = scalePI(odometryTheta - wheel_theta); // -PI to +PI

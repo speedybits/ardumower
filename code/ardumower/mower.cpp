@@ -44,7 +44,7 @@ Mower::Mower(){
   #if defined (ROBOT_ARDUMOWER)
 		motorPowerMax              = 75;        // motor wheel max power (Watt)		  
 		motorSpeedMaxPwm           = 255;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)
-		motorSpeedMaxRpm           = 25;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
+		motorSpeedMaxRpm           = 20;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
 		motorLeftPID.Kp            = 1.5;       // motor wheel PID controller
     motorLeftPID.Ki            = 0.29;
     motorLeftPID.Kd            = 0.25;
