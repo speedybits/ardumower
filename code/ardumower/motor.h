@@ -63,18 +63,6 @@ void Robot::calcOdometry(){
     odometryX += (avg_cm * sin(odometryTheta));
     odometryY += (avg_cm * cos(odometryTheta));
 
-  /*
-  odometryYIMU += (avg_cm * sin(odometryThetaIMU));
-  odometryXIMU += (avg_cm * cos(odometryThetaIMU));  
-  Console.print("Odometry: ");
-  Console.print(odometryX);
-  Console.print(F(" , "));
-  Console.print(odometryY);
-  Console.print("      Odometry IMU: ");  
-  Console.print(odometryXIMU);
-  Console.print(F(" , "));
-  Console.println(odometryYIMU);    
-  */
 }
 
 
