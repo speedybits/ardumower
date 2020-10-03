@@ -29,6 +29,8 @@ void Robot::calcOdometry(){
   double avg_cm  = (left_cm + right_cm) / 2.0;
   double wheel_theta = (left_cm - right_cm) / ((double)odometryWheelBaseCm);
 
+  //float odometryThetaIMU;
+
   if (imuUseForTheta || perimeterVirtualUse) {
     // Use IMU to provide Theta (rotation)
     // http://seattlerobotics.org/encoder/200610/Article3/IMU%20Odometry,%20by%20David%20Anderson.htm
@@ -36,23 +38,13 @@ void Robot::calcOdometry(){
     // and substituting the value so obtained for the theta value normally calculated from the wheel encoders. 
     /* read the YAW value from the imu struct and convert to radians */
 
-    // imu.com.x    (N)=1.0   (E)=0    (S)=-1.0   (W)=0  
-    odometryTheta = (atan2(imu.com.x, imu.com.y)/-0.0174);
-    if (odometryTheta<0) odometryTheta+=360; // degrees
+    // Radians
+    // Take 4 samples within 200ms, instead of 1 sample every 100ms
+    odometryTheta = (atan2(imu.com.x, imu.com.y)); // 0.00 to 3.14 or -0.00 to -3.14
+    //odometryTheta = scalePI(imu.ypr.yaw); // imu.ypr.yaw is -3.14 to +3.14
+    Console.print(F("odometryTheta "));
+    Console.println(odometryTheta);
 
-    
-    if (perimeterVirtualUse) {
-      // Add offset for Virtual perimeter so that perimeter Y axis lines up with 0 degrees North
-      odometryTheta = odometryTheta + perimeterVirtualOffset;
-    }
-  
-    // Flip because compass is mounted backwards?
-    odometryTheta = odometryTheta + 180;
-    while (odometryTheta>360) odometryTheta-=360;
-
-    // Convert to radians
-    odometryTheta = odometryTheta * PI/180;
-    
   } else {
     odometryTheta = scalePI(odometryTheta - wheel_theta); // -PI to +PI
   }
@@ -61,15 +53,28 @@ void Robot::calcOdometry(){
   motorRightRpmCurr = double ((( ((double)ticksRight) / ((double)odometryTicksPerRevolution)) / ((double)(millis() - lastMotorRpmTime))) * 60000.0);                      
   lastMotorRpmTime = millis();
   
-  // ROS coordinate system (X+ forward, Y+ left, Z+ up)  
+  // ROS coordinate system (X+ forward, Y+ left, Z+ up).
+  // When we use imu for theta, Y- is left
   // FIXME: theta should be old theta, not new theta?
-  if (imuUseForTheta) {
-    odometryX += (avg_cm * cos(odometryTheta));
-    odometryY += (avg_cm * sin(odometryTheta));
-  } else {
+  //Console.print(sin(odometryTheta));
+  //Console.print(F(" , "));
+  //Console.println(cos(odometryTheta));
+
     odometryX += (avg_cm * sin(odometryTheta));
-    odometryY += (avg_cm * cos(odometryTheta));    
-  }
+    odometryY += (avg_cm * cos(odometryTheta));
+
+  /*
+  odometryYIMU += (avg_cm * sin(odometryThetaIMU));
+  odometryXIMU += (avg_cm * cos(odometryThetaIMU));  
+  Console.print("Odometry: ");
+  Console.print(odometryX);
+  Console.print(F(" , "));
+  Console.print(odometryY);
+  Console.print("      Odometry IMU: ");  
+  Console.print(odometryXIMU);
+  Console.print(F(" , "));
+  Console.println(odometryYIMU);    
+  */
 }
 
 

@@ -109,7 +109,6 @@ Mower::Mower(){
   
   // ------ perimeter ---------------------------------
   perimeterVirtualUse        = 1;
-  perimeterVirtualOffset     = 40;         // Degrees offset. Want Odometry Y axis to line up with 0 Degrees North.
   perimeterVirtualIndoorTest = 0;
   perimeterUse               = 0;          // use perimeter?    
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
