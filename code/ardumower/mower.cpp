@@ -44,7 +44,7 @@ Mower::Mower(){
   #if defined (ROBOT_ARDUMOWER)
 		motorPowerMax              = 7;        // motor wheel max power (Watt)		  
 		motorSpeedMaxPwm           = 255;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)
-		motorSpeedMaxRpm           = 25;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
+		motorSpeedMaxRpm           = 20;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
 		motorLeftPID.Kp            = 1.5;       // motor wheel PID controller
     motorLeftPID.Ki            = 0.29;
     motorLeftPID.Kd            = 0.25;
@@ -143,7 +143,7 @@ Mower::Mower(){
   imuRollPID.Kd              = 0;  
   
   // ------ model R/C ------------------------------------
-  remoteUse                  = 1;          // use model remote control (R/C)?
+  remoteUse                  = 0;          // use model remote control (R/C)?
   
   // ------ battery -------------------------------------
   #if defined (ROBOT_ARDUMOWER)
@@ -447,9 +447,9 @@ void Mower::setup(){
   pinMode(pinOdometryRight2, INPUT_PULLUP);  
   
   // user switches
-  pinMode(pinUserSwitch1, OUTPUT);
-  pinMode(pinUserSwitch2, OUTPUT);
-  pinMode(pinUserSwitch3, OUTPUT);   
+  pinMode(pinUserSwitch1, INPUT);
+  pinMode(pinUserSwitch2, INPUT);
+  pinMode(pinUserSwitch3, INPUT);   // This will be our magnet sensor
   
   // other
   pinMode(pinVoltageMeasurement, INPUT);  

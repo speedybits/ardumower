@@ -27,18 +27,42 @@ void Robot::calcOdometry(){
   double left_cm = ((double)ticksLeft) / ((double)odometryTicksPerCm);
   double right_cm = ((double)ticksRight) / ((double)odometryTicksPerCm);  
   double avg_cm  = (left_cm + right_cm) / 2.0;
-  double wheel_theta = (left_cm - right_cm) / ((double)odometryWheelBaseCm);    
-  odometryTheta = scalePI(odometryTheta - wheel_theta); 
-  
+  double wheel_theta = (left_cm - right_cm) / ((double)odometryWheelBaseCm);
+
+  //float odometryThetaIMU;
+
+  if (imuUseForTheta || perimeterVirtualUse) {
+    // Use IMU to provide Theta (rotation)
+    // http://seattlerobotics.org/encoder/200610/Article3/IMU%20Odometry,%20by%20David%20Anderson.htm
+    // Incorporating the heading from the IMU is simply a matter of reading the Yaw value from the imum scaling it appropriately, 
+    // and substituting the value so obtained for the theta value normally calculated from the wheel encoders. 
+    /* read the YAW value from the imu struct and convert to radians */
+
+    // Radians
+    // Take 4 samples within 200ms, instead of 1 sample every 100ms
+    odometryTheta = (atan2(imu.com.x, imu.com.y)); // 0.00 to 3.14 or -0.00 to -3.14
+    //odometryTheta = scalePI(imu.ypr.yaw); // imu.ypr.yaw is -3.14 to +3.14
+    //Console.print(F("odometryTheta "));
+    //Console.println(odometryTheta);
+
+  } else {
+    odometryTheta = scalePI(odometryTheta - wheel_theta); // -PI to +PI
+  }
 	// calculate RPM 
   motorLeftRpmCurr  = double ((( ((double)ticksLeft) / ((double)odometryTicksPerRevolution)) / ((double)(millis() - lastMotorRpmTime))) * 60000.0); 
   motorRightRpmCurr = double ((( ((double)ticksRight) / ((double)odometryTicksPerRevolution)) / ((double)(millis() - lastMotorRpmTime))) * 60000.0);                      
   lastMotorRpmTime = millis();
   
-  // ROS coordinate system (X+ forward, Y+ left, Z+ up)  
+  // ROS coordinate system (X+ forward, Y+ left, Z+ up).
+  // When we use imu for theta, Y- is left
   // FIXME: theta should be old theta, not new theta?
-  odometryY += avg_cm * sin(odometryTheta); 
-  odometryX += avg_cm * cos(odometryTheta); 
+  //Console.print(sin(odometryTheta));
+  //Console.print(F(" , "));
+  //Console.println(cos(odometryTheta));
+
+    odometryX += (avg_cm * sin(odometryTheta));
+    odometryY += (avg_cm * cos(odometryTheta));
+
 }
 
 

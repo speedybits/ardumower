@@ -133,7 +133,7 @@ choose your robot type, PCB version, baud rates, pin definitions etc.
 #else 
   // Arduino Due  
    // Due has two serial ports: Native (SerialUSB) and Programming (Serial) - we want to use 'SerialUSB' for 'Console'
-  #define Console Serial
+  #define Console Serial        // Change this to 'Serial2' and Bluetooth to use 'Serial' to allow monitoring the console over Bluetooth
   #define ESP8266port Serial1
   #define Bluetooth Serial2  // Ardumower default
 #endif

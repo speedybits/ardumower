@@ -35,6 +35,8 @@
 #define ADDR_ERR_COUNTERS 400
 #define ADDR_ROBOT_STATS 800
 
+
+
 const char* stateNames[] ={"OFF ", "ROS", "RC  ", "FORW", "ROLL", "REV ", "CIRC", "ERR ", "PFND", "PTRK", "PROL", "PREV", "STAT", "CHARG", "STCHK",
   "STREV", "STROL", "STFOR", "MANU", "ROLW", "POUTFOR", "POUTREV", "POUTROLL", "TILT", "BUMPREV", "BUMPFORW"};
 
@@ -47,6 +49,11 @@ const char* mowPatternNames[] = {"RAND", "LANE", "BIDIR"};
 
 const char* consoleModeNames[] ={"sen_counters", "sen_values", "perimeter", "off"}; 
 
+// asdf
+static const int fencePosts[] [2] = {  
+  // Put the name of the file with the complete Path
+  #include "virtualPerimeter.h" 
+};
 
 // --- split robot class ----
 #include "battery.h"
@@ -58,6 +65,7 @@ const char* consoleModeNames[] ={"sen_counters", "sen_values", "perimeter", "off
 #include "modelrc.h"
 #include "settings.h"
 #include "timer.h"
+
 // -----------------------------
 
 
@@ -70,8 +78,6 @@ float Robot::voltageDividerUges(float R1, float R2, float U2){
 float Robot::ADC2voltage(float ADCvalue){
   return (ADCvalue /1023.0 * IOREF);   // ADCman works @ 10 bit
 }  
-
-
 
 Robot::Robot(){
   name = "Generic";
@@ -89,8 +95,7 @@ Robot::Robot(){
   odometryLeft = odometryRight = 0;	
   odometryLeftLastState = odometryLeftLastState2 = odometryRightLastState = odometryRightLastState2 = LOW;
   odometryTheta = odometryX = odometryY = 0;
-
-    
+  
   motorRightRpmCurr = motorLeftRpmCurr = 0;
   lastMotorRpmTime = 0;
   lastSetMotorSpeedTime = 0;
@@ -141,6 +146,7 @@ Robot::Robot(){
   imuRollHeading = 0;
   
   perimeterMag = 1;
+  virtualPerimeterMag = 1;
   perimeterMagMedian.add(perimeterMag);
   perimeterInside = true;
   perimeterCounter = 0;  
@@ -188,6 +194,7 @@ Robot::Robot(){
   nextTimeIMU = 0;
   nextTimeCheckTilt = 0;
   nextTimeOdometry = 0;
+  //nextTimeProcessOdometry = 0;
   nextTimeOdometryInfo = 0;
   nextTimeBumper = 0;
   nextTimeDrop = 0;                                                                                                                    // Dropsensor - Absturzsensor
@@ -279,14 +286,62 @@ void Robot::setUserSwitches(){
   setActuator(ACT_USER_SW3, userSwitch3);     
 }
 
-void Robot::setup()  {     
+void Robot::setup()  {
+/* This examples illustrates how to import numeric data from a separate Text file
+
+  By Luca Brigatti - 2012 
+  witht he help of the folks in the Arduino programming forum.
+
+  Note: Leaving the first dimension empty: data[][2]
+  and using: sizeof(data) 
+  to calculate the size of the array in bytes eliminates the need to know beforehand 
+  how many values are there in the file.
+  
+  The operation: maxIndex = sizeof(data) / 4 - 1
+  return the highest index number of the first dimension:  data[maxIndex][2]
+  The denominator (4 in this case) is the product of the number of bytes per data type (2 bytes per integer) 
+times the size of the second dimension ([2] in this case)
+  
+  The text file being read: "numbers2.hh"
+  contains something like that: 
+  ________________________
+  // Example of bidimensional numeric data array
+  // The actual numbers can be any int (if the data array is int)
+ {1,1},
+ {-2,4},
+ {3,-9},
+ {4,}, // Second element here will be 0, Like:  {4,0},
+ {-5,-25},
+......
+_________________________________
+
+Note: {,4},   i.e leaving the first place empty is NOT allowed.  
+*/
+  // asdf
+ arraySize=sizeof(fencePosts);  // Gets the size of the array in bytes
+ maxIndex = (arraySize/4 - 1)/2; // Size /2 (bytes in an int) /2 (for a bidimensional array) - 1 (as index starts at 0)   
+ // Print dimensions of the array
+ Console.print("Array Size (bytes): ");
+ Console.println (arraySize);
+ Console.print ("# of rows: "); // reported as 96. Should be 48
+ Console.println(maxIndex+1);
+// Print all the data in the array,
+ for (byte i=0; i<maxIndex; i++) {
+   Serial.print (fencePosts[i][0]);
+   Serial.print (" , ");
+   Serial.println (fencePosts[i][1]);
+ }
+
   setDefaultTime();
   setMotorPWM(0, 0, false);
   loadSaveErrorCounters(true);
   loadUserSettings();
   if (!statsOverride) loadSaveRobotStats(true);
   else loadSaveRobotStats(false);
-  setUserSwitches();	
+  if (!perimeterVirtualUse) {
+    // We are using userSwitch3 as an input in Virtual Perimeter mode
+    setUserSwitches();
+  }	
 	if (!ADCMan.calibrationDataAvail()) {
     ADCMan.calibrate();
   }
@@ -389,8 +444,17 @@ void Robot::checkButton(){
           addErrorCounter(ERR_PERIMETER_TIMEOUT);
           setNextState(STATE_ERROR, 0);                          
         } else {*/
-          // start normal with mowing        
+          // start normal with mowing
           motorMowEnable = true;
+          perimeterVirtualMarkerTimeout = millis() + (6000 * 100); // 10min
+
+          if (perimeterVirtualIndoorTest) {
+            odometryX = -30;
+            odometryY = 51;
+          } else {
+            odometryX = 0;
+            odometryY = 0;
+          }
           //motorMowModulate = true;                     
           mowPatternCurr = MOW_RANDOM;   
           setNextState(STATE_FORWARD, 0);                
@@ -445,17 +509,33 @@ void Robot::readSensors(){
   }  
 
 
-  if ((perimeterUse) && (millis() >= nextTimePerimeter)){    
+  if ((perimeterUse || perimeterVirtualUse) && (millis() >= nextTimePerimeter)){
     if (stateCurr == STATE_PERI_TRACK) nextTimePerimeter = millis() +  30;   
     else nextTimePerimeter = millis() +  50;   // 50
-    perimeterMag = readSensor(SEN_PERIM_LEFT);
+    if (perimeterUse) {
+      perimeterMag = readSensor(SEN_PERIM_LEFT);
+    } else if (perimeterVirtualUse) {
+      perimeterMag = virtualPerimeterMag;
+    }
     if (stateCurr == STATE_PERI_FIND)perimeterMagMedian.add(abs(perimeterMag));
-    if ((perimeter.isInside(0) != perimeterInside)){      
-      perimeterCounter++;
-			setSensorTriggered(SEN_PERIM_LEFT);
-      perimeterLastTransitionTime = millis();
-      perimeterInside = perimeter.isInside(0);
-    }    
+
+    if (perimeterUse) {
+      if ((perimeter.isInside(0) != perimeterInside)){      
+        perimeterCounter++;
+  		  setSensorTriggered(SEN_PERIM_LEFT);
+        perimeterLastTransitionTime = millis();
+        perimeterInside = perimeter.isInside(0);
+      }
+    } else if (perimeterVirtualUse) {
+      boolean virtualPerimeterInside = insideVirtualPerimeter();
+      if (virtualPerimeterInside!=perimeterInside) {
+        perimeterCounter++;
+        setSensorTriggered(SEN_PERIM_LEFT);
+        perimeterLastTransitionTime = millis();
+        perimeterInside = virtualPerimeterInside;
+      }
+    }
+
     static boolean LEDstate = false;
     if (perimeterInside && !LEDstate) {
       setActuator(ACT_LED, HIGH);
@@ -473,7 +553,7 @@ void Robot::readSensors(){
         perimeterTriggerTime = millis();
       }
     }
-    if (perimeter.signalTimedOut(0))  {      
+    if (perimeterUse && perimeter.signalTimedOut(0))  {
       if ( (stateCurr != STATE_OFF) && (stateCurr != STATE_MANUAL) && (stateCurr != STATE_STATION) 
       	&& (stateCurr != STATE_STATION_CHARGING) && (stateCurr != STATE_STATION_CHECK) 
       	&& (stateCurr != STATE_STATION_REV) && (stateCurr != STATE_STATION_ROLL) 
@@ -818,7 +898,7 @@ void Robot::checkCurrent(){
   }
   else if (motorRightSense >= motorPowerMax){   
      // right wheel motor overpowered
-     if ( ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_FIND)) && (millis() > stateStartTime + motorPowerIgnoreTime)){    				  
+     } else if ( ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_FIND)) && (millis() > stateStartTime + motorPowerIgnoreTime)){    				  
        //beep(1);
        motorRightSenseCounter++;
 			 setSensorTriggered(SEN_MOTOR_RIGHT);
@@ -894,7 +974,7 @@ void Robot::checkBumpersPerimeter(){
 
 // check perimeter as a boundary
 void Robot::checkPerimeterBoundary(){
-  if (!perimeterUse) return;
+  if (!perimeterUse && !perimeterVirtualUse) return;
   if (millis() >= nextTimeRotationChange){
       nextTimeRotationChange = millis() + 30000;
       // We choose random direction if MOW_RANDOM
@@ -979,19 +1059,189 @@ void Robot::checkPerimeterFind(){
   if (stateCurr == STATE_PERI_FIND && enablePerimeterFind == true){
     if (perimeterInside) {
       // inside
-      if (motorLeftSpeedRpmSet != motorRightSpeedRpmSet){      
+      if (motorLeftSpeedRpmSet != motorRightSpeedRpmSet){
         // we just made an 'outside=>inside' rotation, now track
-        setNextState(STATE_PERI_TRACK, 0);    
+        setNextState(STATE_PERI_TRACK, 0);
       }
     } else {
       // we are outside, now roll to get inside
-      motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.5;
-      motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
+      if (perimeterVirtualUse) {
+        // With the virtual perimeter wire, rotating in place
+        // doesn't get us back inside the perimeter since our X,Y
+        // will remain approximately the same if we spin in place.
+        // We want to do a spiral instead
+        motorRightSpeedRpmSet = motorSpeedMaxRpm / 8;
+        motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
+      } else {
+        motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.5;
+        motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
+      }
     }
   }
 }
 
- 
+boolean Robot::insideVirtualPerimeter()
+{
+
+  //if (millis() >= perimeterVirtualMarkerTimeout){
+  //  setNextState(STATE_OFF, 0);
+  //}
+
+  // Update position if we pass over a magnet
+  if (sensorDetected(pinUserSwitch3)) {
+    reverseOrBidir(LEFT);
+    adjustRobotXY();
+    beep(7, true);
+  }
+
+  bool closeToFence = false;
+  bool inside = false;
+  double distanceToClosestFencePost = 100000;
+  int closestFencePost = 0;
+  
+  // asdf
+  // Determine if we are close to one of the fenceposts
+  for (int i=0; i < maxIndex; i++) {
+    int fenceX = fencePosts[i][0];
+    int fenceY = fencePosts[i][1];
+    double distanceToFencePost = getDistanceToObject(fenceX, fenceY);
+    if (distanceToFencePost < distanceToClosestFencePost) {
+      distanceToClosestFencePost = distanceToFencePost;
+      closestFencePost = i;
+    }
+  }
+  if (distanceToClosestFencePost < 100) {
+    closeToFence = true;
+    Console.print(F("Close to fence post: "));
+    Console.println(closestFencePost);
+    Console.print(F("OdometryXY   "));
+    Console.print(odometryX);
+    Console.print(F(" , "));
+    Console.println(odometryY);
+  } 
+  //else if (distanceToClosestMarker > 200) {
+  //  setNextState(STATE_OFF, 0);
+  //}
+
+  // See if we are inside or leaving the fenced area
+  double currentDistanceToCenterOfYard = getDistanceToObject(-300,0);
+  if (closeToFence && (currentDistanceToCenterOfYard > lastDistanceToCenterOfYard)) {
+    // leaving perimeter
+    inside = false;
+    Console.println(F("Leaving Fence"));
+  } else {
+    inside = true;
+  }
+
+  lastDistanceToCenterOfYard = currentDistanceToCenterOfYard;
+  return inside;
+
+  /*
+  // Lookup table to determine if we are outside X/Y
+  // 100cm = 1m
+  // Starting point should be at the first septic disc
+  // Y is only positive from this point
+  // X can go negative or positive
+  int NORTH_BOUNDARY;
+  int WEST_BOUNDARY;
+  int SOUTH_BOUNDARY;
+  int EAST_BOUNDARY;
+  int CIRCLE_WEST;
+  int CIRCLE_NORTH;
+  int TRAMPOLINE_EAST;
+  int TRAMPOLINE_NORTH;
+
+  if (perimeterVirtualIndoorTest) {
+    // Living room
+    // 9 feet long x 7 feet wide
+    NORTH_BOUNDARY = 250;
+    WEST_BOUNDARY = -170;
+    SOUTH_BOUNDARY = 25;
+    EAST_BOUNDARY = 25;   
+  } else {
+    NORTH_BOUNDARY = 800; // 17m
+    WEST_BOUNDARY = -400; //-1500; // 10m
+    SOUTH_BOUNDARY = 20;
+    EAST_BOUNDARY = 100;
+    CIRCLE_WEST = 100;
+    CIRCLE_NORTH = 900;
+    TRAMPOLINE_EAST = -400;
+    TRAMPOLINE_NORTH = 400;
+  }
+
+  return true;
+  
+  if (odometryX > NORTH_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryX-NORTH_BOUNDARY);
+    return false;
+  } else if (odometryX < SOUTH_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryX-SOUTH_BOUNDARY);
+    return false;
+  } else if (odometryY > EAST_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryY-EAST_BOUNDARY);
+    return false;
+  } else if (odometryY < WEST_BOUNDARY) {
+    virtualPerimeterMag = abs(odometryY-WEST_BOUNDARY);    
+    return false;
+  } else {
+    virtualPerimeterMag = virtualPerimeterMag - 100;
+    if (virtualPerimeterMag < -1400) virtualPerimeterMag = -1400;
+    return true;
+  }
+  */
+
+}
+
+void Robot::adjustRobotXY() {
+  perimeterVirtualMarkerTimeout = millis() + (6000 * 100); // 10min
+
+  // Arbitrary high value to start with
+  int closestMarkerDistance = 10000;
+  int closestMarker = 0;
+  int distanceToMarker = 0;
+
+  markerY[0] = 281;
+  markerX[0] = 226;
+
+  markerY[1] = 625;
+  markerX[1] = -72;
+
+  markerY[2] = 5000;
+  markerX[2] = 5000;
+
+  for (int i=0; i<NUM_MARKERS; i++) {
+    //int distX = abs(odometryX-markerX[i]);
+    //int distY = abs(odometryY-markerY[i]);
+
+    distanceToMarker = getDistanceToObject(markerX[i], markerY[i]);
+    if (distanceToMarker < closestMarkerDistance) {
+      // This is the closest marker
+      closestMarkerDistance = distanceToMarker;
+      closestMarker = i;
+    }
+  }
+  //if (closestMarkerDistance < 250) {
+      // 500 = 5m
+      // Update robot X,Y
+      odometryX = markerX[closestMarker];
+      odometryY = markerY[closestMarker];
+
+      // Remember X,Y of closest marker
+      closestMarkerX = odometryX;
+      closestMarkerY = odometryY;
+      //beep(5, true);
+  //}
+}
+
+int Robot::getDistanceToObject(int objectX, int objectY) {
+  int distance;
+  int distX = abs(odometryX-objectX);
+  int distY = abs(odometryY-objectY);
+
+  distance = abs(sqrt(sq(distX) + sq(distY)));
+  return distance;
+}
+
 // check lawn 
 void Robot::checkLawn(){
   if (!lawnSensorUse) return;
@@ -1111,7 +1361,7 @@ void Robot::checkTilt(){
     }
   }
   
-  if(!imuUse) return;    
+  if(true) return; //(!imuUse) return;    
   int pitchAngle = (imu.ypr.pitch/PI*180.0);
   int rollAngle  = (imu.ypr.roll/PI*180.0);
   if ( (stateCurr != STATE_OFF) && (stateCurr != STATE_ERROR) && (stateCurr != STATE_STATION) ){
@@ -1428,7 +1678,7 @@ void Robot::loop()  {
 
   if (gpsUse) { 
     gps.feed();
-    processGPSData();    
+    processGPSData();
   }
 
   if (millis() >= nextTimePfodLoop){
@@ -1681,6 +1931,7 @@ void Robot::loop()  {
         checkBumpersPerimeter();
         checkSonar();                           
       }  
+      checkPerimeterBoundary();
       checkPerimeterFind();      
       checkTimeout();                    
       break;
@@ -1763,7 +2014,7 @@ void Robot::loop()  {
   
     // decide which motor control to use
     if ( ((mowPatternCurr == MOW_LANES) && (stateCurr == STATE_ROLL)) || (stateCurr == STATE_ROLL_WAIT) ) motorControlImuRoll();
-      else if (stateCurr == STATE_PERI_TRACK) motorControlPerimeter();
+      else if ((stateCurr == STATE_PERI_TRACK)) motorControlPerimeter();
       else if (  (stateCurr == STATE_FORWARD)
        //&&  (mowPatternCurr == MOW_RANDOM)
        && (imuUse) 
@@ -1782,11 +2033,3 @@ void Robot::loop()  {
                              
   loopsPerSecCounter++;  
 }
-
-
-
-
-
-
-
-

@@ -231,12 +231,19 @@ class Robot
     boolean odometryRightLastState;
     boolean odometryRightLastState2;
     float odometryTheta; // theta angle (radiant)
+    float odometryThetaAdjusted; // odometryTheta with offset
+    float theta_global;
+    float last_theta;
+    float imu_theta;
     float odometryX ;   // X map position (cm)
-    float odometryY ;   // Y map position (cm)    
+    float odometryY ;   // Y map position (cm)
+    float closestMarkerX; // X position of closest marker (cm)
+    float closestMarkerY; // Y position of closest marker (cm)
     float motorLeftRpmCurr ; // left wheel rpm    
     float motorRightRpmCurr ; // right wheel rpm    
     unsigned long lastMotorRpmTime ;     
     unsigned long nextTimeOdometry ;
+    //unsigned long nextTimeProcessOdometry;
     unsigned long nextTimeOdometryInfo ; 
 		boolean odoLeftRightCorrection;
     // -------- RC remote control state -----------------    
@@ -351,7 +358,8 @@ class Robot
     char dropcontact ; // contact 0-openers 1-closers                                                                                 // Dropsensor Kontakt 0 für Öffner - 1 Schließer
     // ------- IMU state --------------------------------
     IMU imu;
-    char imuUse            ;       // use IMU? 
+    char imuUse            ;       // use IMU?
+    char imuUseForTheta    ;       // use IMU for odometry theta for reduced error 
     char imuCorrectDir     ;       // correct direction by compass?
     PID imuDirPID  ;    // direction PID controller
     PID imuRollPID ;    // roll PID controller        
@@ -363,7 +371,14 @@ class Robot
     unsigned long nextTimeCheckTilt; // check if
     // ------- perimeter state --------------------------
     Perimeter perimeter;
-    char perimeterUse       ;      // use perimeter?    
+    char perimeterUse       ;      // use perimeter?
+    bool perimeterVirtualUse;      // use virtual perimeter (odometry/compass w/ keep-out zones)
+    int perimeterVirtualOffset;
+    unsigned long perimeterVirtualMarkerTimeout;
+    bool perimeterVirtualIndoorTest;
+    int maxIndex ;
+    int arraySize ;
+    float lastDistanceToCenterOfYard;
     int perimeterOutRollTimeMax ;   
     int perimeterOutRollTimeMin ;
     int perimeterOutRevTime  ;   
@@ -371,7 +386,6 @@ class Robot
     int perimeterTrackRevTime ; // perimeter tracking reverse time (ms)
     PID perimeterPID ;             // perimeter PID controller
     int perimeterMag ;             // perimeter magnitude
-    int sample;
     RunningMedian perimeterMagMedian = RunningMedian(300);
     float PeriCoeffAccel;
     int leftSpeedperi;
@@ -537,6 +551,11 @@ class Robot
     boolean rmcsTriggerIMU;
     boolean rmcsTriggerFreeWheel;
     boolean rmcsTriggerRain;
+
+    int markerX[3];
+    int markerY[3];
+    int NUM_MARKERS = 3;
+
     // --------------------------------------------------
     Robot();
     // robot setup
@@ -565,7 +584,12 @@ class Robot
     
     // GPS
     virtual void processGPSData();
-    
+
+    // Virtual fence
+    virtual bool insideVirtualPerimeter();
+    virtual void adjustRobotXY();
+    virtual int getDistanceToObject(int x, int y);
+
     // read hardware sensor (HAL)
     virtual int readSensor(char type){}    
     
