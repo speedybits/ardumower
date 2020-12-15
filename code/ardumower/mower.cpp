@@ -42,16 +42,16 @@ Mower::Mower(){
   // ------- wheel motors -----------------------------
   motorAccel                 = 1000;      // motor wheel acceleration - only functional when odometry is not in use (warning: do not set too low)
   #if defined (ROBOT_ARDUMOWER)
-		motorPowerMax              = 75;        // motor wheel max power (Watt)		  
+		motorPowerMax              = 7;        // motor wheel max power (Watt)		  
 		motorSpeedMaxPwm           = 255;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)
 		motorSpeedMaxRpm           = 25;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
 		motorLeftPID.Kp            = 1.5;       // motor wheel PID controller
     motorLeftPID.Ki            = 0.29;
     motorLeftPID.Kd            = 0.25;
-    motorZeroSettleTime        = 3000 ;     // how long (ms) to wait for motors to settle at zero speed
+    motorZeroSettleTime        = 1000 ;     // how long (ms) to wait for motors to settle at zero speed
 		motorReverseTime           = 1200;      // max. reverse time (ms)
-		motorRollTimeMax           = 1500;      // max. roll time (ms)
-		motorRollTimeMin           = 750;       // min. roll time (ms) should be smaller than motorRollTimeMax  
+		motorRollTimeMax           = 4000;      // max. roll time (ms)
+		motorRollTimeMin           = 2000;       // min. roll time (ms) should be smaller than motorRollTimeMax  
   #else // ROBOT_MINI		
 		motorPowerMax              = 2.0;         // motor wheel max power (Watt)			
 		motorSpeedMaxPwm           = 127;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)	  
@@ -77,7 +77,7 @@ Mower::Mower(){
   // ------ mower motor -------------------------------
   motorMowAccel              = 2000;       // motor mower acceleration (warning: do not set too low) 2000 seems to fit best considerating start time and power consumption 
   motorMowSpeedMaxPwm        = 255;        // motor mower max PWM
-  motorMowPowerMax           = 75.0;       // motor mower max power (Watt)
+  motorMowPowerMax           = 35.0;       // motor mower max power (Watt)
   motorMowModulate           = 0;          // motor mower cutter modulation?
   motorMowRPMSet             = 3300;       // motor mower RPM (only for cutter modulation)
   motorMowSenseScale         = ADC2voltage(1)*1905;    // ADC to mower motor sense milliamp 
@@ -100,18 +100,18 @@ Mower::Mower(){
   rainUse                    = 0;          // use rain sensor?
   
   // ------ sonar ------------------------------------
-  sonarUse                   = 0;          // use ultra sonic sensor? (WARNING: robot will slow down, if enabled but not connected!)
-  sonarLeftUse               = 1;
-  sonarRightUse              = 1;
-  sonarCenterUse             = 0;
-  sonarTriggerBelow          = 0;       // ultrasonic sensor trigger distance (0=off)
+  sonarUse                   = 1;          // use ultra sonic sensor? (WARNING: robot will slow down, if enabled but not connected!)
+  sonarLeftUse               = 0;
+  sonarRightUse              = 0;
+  sonarCenterUse             = 1;
+  sonarTriggerBelow          = 30;       // ultrasonic sensor trigger distance (0=off)
 	sonarSlowBelow             = 100;     // ultrasonic sensor slow down distance
   
   // ------ perimeter ---------------------------------
-  perimeterUse               = 0;          // use perimeter?    
+  perimeterUse               = 1;          // use perimeter?    
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
-  perimeterOutRollTimeMax    = 2000;       // roll time max after perimeter out (ms)
-  perimeterOutRollTimeMin    = 750;        // roll time min after perimeter out (ms)
+  perimeterOutRollTimeMax    = 5000;       // roll time max after perimeter out (ms)
+  perimeterOutRollTimeMin    = 2000;        // roll time min after perimeter out (ms)
   perimeterOutRevTime        = 2200;       // reverse time after perimeter out (ms)
   perimeterTrackRollTime     = 1500;       // roll time during perimeter tracking
   perimeterTrackRevTime      = 2200;       // reverse time during perimeter tracking
@@ -133,7 +133,7 @@ Mower::Mower(){
   lawnSensorUse     = 0;                   // use capacitive lawn Sensor
   
   // ------  IMU (compass/accel/gyro) ----------------------
-  imuUse                     = 1;          // use IMU?
+  imuUse                     = 0;          // use IMU?
   imuCorrectDir              = 0;          // correct direction by compass?
   imuDirPID.Kp               = 5.0;        // direction PID controller
   imuDirPID.Ki               = 1.0;
@@ -147,9 +147,9 @@ Mower::Mower(){
   
   // ------ battery -------------------------------------
   #if defined (ROBOT_ARDUMOWER)
-    batMonitor                 = 1;          // monitor battery and charge voltage?
-		batSwitchOffIfBelow        = 21.7;       // switch off battery if below voltage (Volt)
-		batGoHomeIfBelow           = 23.7;       // drive home voltage (Volt)  	
+    batMonitor                 = 0;          // monitor battery and charge voltage?
+		batSwitchOffIfBelow        = 20.0;       // switch off battery if below voltage (Volt)
+		batGoHomeIfBelow           = 21.0;       // drive home voltage (Volt)  	
 		startChargingIfBelow       = 32.0;      // start charging if battery Voltage is below (99999=disabled)
 		batFull                    = 29.4;      // battery reference Voltage (fully charged) PLEASE ADJUST IF USING A DIFFERENT BATTERY VOLTAGE! FOR a 12V SYSTEM TO 14.4V		
 		batFullCurrent             = 0.1;       // current flowing when battery is fully charged	(amp), (-99999=disabled)	
@@ -189,9 +189,9 @@ Mower::Mower(){
   odometryUse                = 1;          // use odometry?    
   
 	#if defined (ROBOT_ARDUMOWER)
-	  odometryTicksPerRevolution = 1060;       // encoder ticks per one full resolution (without any divider)
-		wheelDiameter              = 250;        // wheel diameter (mm)
-		odometryWheelBaseCm        = 36;         // wheel-to-wheel distance (cm)
+	  odometryTicksPerRevolution = 700;       // encoder ticks per one full resolution (without any divider)
+		wheelDiameter              = 191;        // wheel diameter (mm)
+		odometryWheelBaseCm        = 43;         // wheel-to-wheel distance (cm)
 		odoLeftRightCorrection     = true;       // left-right correction for straight lines?
   #else  // ROBOT_MINI		
 		odometryTicksPerRevolution = 20;      // encoder ticks per one full resolution
@@ -207,8 +207,8 @@ Mower::Mower(){
   odometryTicksPerCm         = ((float)odometryTicksPerRevolution) / (((float)wheelDiameter)/10.0) / (3.1415);    // computes encoder ticks per cm (do not change)
   
   // ----- GPS -------------------------------------------
-  gpsUse                     = 0;          // use GPS?
-  stuckIfGpsSpeedBelow       = 0.2;        // if Gps speed is below given value the mower is stuck
+  gpsUse                     = 1;          // use GPS?
+  stuckIfGpsSpeedBelow       = 0.3;        // if Gps speed is below given value the mower is stuck
   gpsSpeedIgnoreTime         = 5000;       // how long gpsSpeed is ignored when robot switches into a new STATE (in ms)
 
   // ----- other -----------------------------------------

@@ -324,6 +324,8 @@ class Robot
     unsigned long lastSetMotorMowSpeedTime;
     unsigned long nextTimeCheckCurrent;
     unsigned long lastTimeMotorMowStuck;
+    unsigned long lastTimeMotorMowNoGrass;
+    unsigned long lastTimeReversed;
     // --------- BumperDuino state ---------------------------
     // bumper state (true = pressed)    
     char bumperUse       ;      // has bumpers?     
@@ -369,6 +371,7 @@ class Robot
     int perimeterTrackRevTime ; // perimeter tracking reverse time (ms)
     PID perimeterPID ;             // perimeter PID controller
     int perimeterMag ;             // perimeter magnitude
+    int sample;
     RunningMedian perimeterMagMedian = RunningMedian(300);
     float PeriCoeffAccel;
     int leftSpeedperi;

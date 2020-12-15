@@ -56,7 +56,10 @@ import java.util.Iterator;
 // -------- configuration ---------
 boolean useTcp = false;  // use TCP (true) or serial (false)
 boolean useChooseDevice = true; // you will be prompted to choose a serial device
-String comPort = "COM9"; 
+// Use the following for Windows
+// String comPort = "COM9";
+// Use the following for Mac Bluetooth
+String comPort = "/dev/cu.Ardumower-DevB";     
 int comBaud = 19200;   
 String tcpHost = "raspberrypi.local"; // TCP host
 //String tcpHost = "localhost";  // TCP host
