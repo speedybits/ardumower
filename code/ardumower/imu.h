@@ -128,6 +128,7 @@ public:
   float scale180(float v);
   float distancePI(float x, float w);
   float distance180(float x, float w);
+  int getHeading();
   float fusionPI(float w, float a, float b);    
 private:  
   bool read();

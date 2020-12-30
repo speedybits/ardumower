@@ -49,11 +49,12 @@ const char* mowPatternNames[] = {"RAND", "LANE", "BIDIR"};
 
 const char* consoleModeNames[] ={"sen_counters", "sen_values", "perimeter", "off"}; 
 
-// asdf
+/*
 static const int fencePosts[] [2] = {  
   // Put the name of the file with the complete Path
   #include "virtualPerimeter.h" 
 };
+*/
 
 // --- split robot class ----
 #include "battery.h"
@@ -146,7 +147,7 @@ Robot::Robot(){
   imuRollHeading = 0;
   
   perimeterMag = 1;
-  virtualPerimeterMag = 1;
+  //virtualPerimeterMag = 1;
   perimeterMagMedian.add(perimeterMag);
   perimeterInside = true;
   perimeterCounter = 0;  
@@ -233,6 +234,12 @@ Robot::Robot(){
   rmcsInfoLastSendBumper = 0;
   rmcsInfoLastSendOdometry = 0;
   rmcsInfoLastSendPeri = 0;
+
+  // GPS
+      homeLat = 30.2396751; // Shepherds hook 
+      homeLon = -97.9099045;
+      headHome = false;
+      closeToHome = false;
 }
 
 const char *Robot::mowPatternName(){
@@ -317,7 +324,8 @@ _________________________________
 
 Note: {,4},   i.e leaving the first place empty is NOT allowed.  
 */
-  // asdf
+
+/*
  arraySize=sizeof(fencePosts);  // Gets the size of the array in bytes
  maxIndex = (arraySize/4 - 1)/2; // Size /2 (bytes in an int) /2 (for a bidimensional array) - 1 (as index starts at 0)   
  // Print dimensions of the array
@@ -331,6 +339,7 @@ Note: {,4},   i.e leaving the first place empty is NOT allowed.
    Serial.print (" , ");
    Serial.println (fencePosts[i][1]);
  }
+*/
 
   setDefaultTime();
   setMotorPWM(0, 0, false);
@@ -338,11 +347,7 @@ Note: {,4},   i.e leaving the first place empty is NOT allowed.
   loadUserSettings();
   if (!statsOverride) loadSaveRobotStats(true);
   else loadSaveRobotStats(false);
-  if (!perimeterVirtualUse) {
-    // We are using userSwitch3 as an input in Virtual Perimeter mode
-    setUserSwitches();
-  }	
-	if (!ADCMan.calibrationDataAvail()) {
+  if (!ADCMan.calibrationDataAvail()) {
     ADCMan.calibrate();
   }
   
@@ -446,15 +451,10 @@ void Robot::checkButton(){
         } else {*/
           // start normal with mowing
           motorMowEnable = true;
-          perimeterVirtualMarkerTimeout = millis() + (6000 * 100); // 10min
-
-          if (perimeterVirtualIndoorTest) {
-            odometryX = -30;
-            odometryY = 51;
-          } else {
-            odometryX = 0;
-            odometryY = 0;
-          }
+          headHome = false;
+	  closeToHome = false;
+          odometryX = 0;
+          odometryY = 0;
           //motorMowModulate = true;                     
           mowPatternCurr = MOW_RANDOM;   
           setNextState(STATE_FORWARD, 0);                
@@ -509,14 +509,12 @@ void Robot::readSensors(){
   }  
 
 
-  if ((perimeterUse || perimeterVirtualUse) && (millis() >= nextTimePerimeter)){
+  if ((perimeterUse) && (millis() >= nextTimePerimeter)){
     if (stateCurr == STATE_PERI_TRACK) nextTimePerimeter = millis() +  30;   
     else nextTimePerimeter = millis() +  50;   // 50
     if (perimeterUse) {
       perimeterMag = readSensor(SEN_PERIM_LEFT);
-    } else if (perimeterVirtualUse) {
-      perimeterMag = virtualPerimeterMag;
-    }
+    } 
     if (stateCurr == STATE_PERI_FIND)perimeterMagMedian.add(abs(perimeterMag));
 
     if (perimeterUse) {
@@ -525,14 +523,6 @@ void Robot::readSensors(){
   		  setSensorTriggered(SEN_PERIM_LEFT);
         perimeterLastTransitionTime = millis();
         perimeterInside = perimeter.isInside(0);
-      }
-    } else if (perimeterVirtualUse) {
-      boolean virtualPerimeterInside = insideVirtualPerimeter();
-      if (virtualPerimeterInside!=perimeterInside) {
-        perimeterCounter++;
-        setSensorTriggered(SEN_PERIM_LEFT);
-        perimeterLastTransitionTime = millis();
-        perimeterInside = virtualPerimeterInside;
       }
     }
 
@@ -785,21 +775,11 @@ void Robot::reverseOrBidir(byte aRollDir) {
       setNextState(STATE_FORWARD, LEFT);
     }
   } else {
-    if (millis() < lastTimeReversed + 10000) {
-      // We reversed already within the last 10 seconds
-      // randomly go forward/reverse to try and get unstuck
-      if (random(2) == 0){
-        setNextState(STATE_FORWARD, aRollDir);
-      } else {
-        setNextState(STATE_REVERSE, aRollDir);
-      }
-    } else {
       if (stateCurr == STATE_FORWARD) {
         setNextState(STATE_REVERSE, aRollDir);
       } else {
         setNextState(STATE_FORWARD, aRollDir);
       }
-    }
   }
   lastTimeReversed = millis();
 }
@@ -872,8 +852,6 @@ void Robot::checkCurrent(){
      //else reverseOrBidir(RIGHT); 
   }       
 
-    
-  //if (motorLeftSense >=motorPowerMax || ((stateCurr == STATE_FORWARD) && (rollDir == LEFT) && abs(perimeterMag) >= 1800) ) {  //MBK
   if (motorLeftSense >=motorPowerMax) {  
     // left wheel motor overpowered    
     if (     ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_FIND)  || (stateCurr == STATE_PERI_TRACK)) 
@@ -898,7 +876,7 @@ void Robot::checkCurrent(){
   }
   else if (motorRightSense >= motorPowerMax){   
      // right wheel motor overpowered
-     } else if ( ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_FIND)) && (millis() > stateStartTime + motorPowerIgnoreTime)){    				  
+     if ( ((stateCurr == STATE_FORWARD) || (stateCurr == STATE_PERI_FIND)) && (millis() > stateStartTime + motorPowerIgnoreTime)){    				  
        //beep(1);
        motorRightSenseCounter++;
 			 setSensorTriggered(SEN_MOTOR_RIGHT);
@@ -974,7 +952,7 @@ void Robot::checkBumpersPerimeter(){
 
 // check perimeter as a boundary
 void Robot::checkPerimeterBoundary(){
-  if (!perimeterUse && !perimeterVirtualUse) return;
+  if (!perimeterUse) return;
   if (millis() >= nextTimeRotationChange){
       nextTimeRotationChange = millis() + 30000;
       // We choose random direction if MOW_RANDOM
@@ -1030,216 +1008,20 @@ void Robot::checkPerimeterBoundary(){
 // check perimeter while finding it
 void Robot::checkPerimeterFind(){
   if (!perimeterUse) return;
-  bool enablePerimeterFind = true;
-  if (gpsUse) {
-    float robotLat, robotLon;
-    unsigned long age;
-    gps.f_get_position(&robotLat, &robotLon, &age);
-    float homeLat = 30.2397269; // Right side of pomagranites
-    float homeLon = -97.9098615;
 
-    float gotoZone1Lat = 30.2397874;  // East side of leachbed
-    float gotoZone1Lon = -97.9096617;
-    float atZone1Lat   = 30.2397240;  // path @ fire pit
-    float atZone1Lon   = -97.9097610;
-
-    float gotoZone2Lat = 30.2397874;  // Metal shed
-    float gotoZone2Lon = -97.9100932;
-    float atZone2Lat   = 30.2398943;  // West side of leachbed
-    float atZone2Lon   = -97.9099333;
-
-    if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) > 10) {
-      // Must be in a quadrant of the yard with a short path to home
-      enablePerimeterFind = false;
-    }
-    if ((float)gps.distance_between(robotLat, robotLon, gotoZone2Lat, gotoZone2Lon) < 10) {
-      // go to zone 2
-    }
-  }
-  if (stateCurr == STATE_PERI_FIND && enablePerimeterFind == true){
+  if (stateCurr == STATE_PERI_FIND){
     if (perimeterInside) {
       // inside
-      if (motorLeftSpeedRpmSet != motorRightSpeedRpmSet){
+      if (motorLeftSpeedRpmSet != motorRightSpeedRpmSet){      
         // we just made an 'outside=>inside' rotation, now track
-        setNextState(STATE_PERI_TRACK, 0);
+        setNextState(STATE_PERI_TRACK, 0);    
       }
     } else {
       // we are outside, now roll to get inside
-      if (perimeterVirtualUse) {
-        // With the virtual perimeter wire, rotating in place
-        // doesn't get us back inside the perimeter since our X,Y
-        // will remain approximately the same if we spin in place.
-        // We want to do a spiral instead
-        motorRightSpeedRpmSet = motorSpeedMaxRpm / 8;
-        motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
-      } else {
-        motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.5;
-        motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
-      }
+      motorRightSpeedRpmSet = -motorSpeedMaxRpm / 1.5;
+      motorLeftSpeedRpmSet  = motorSpeedMaxRpm / 1.5;
     }
   }
-}
-
-boolean Robot::insideVirtualPerimeter()
-{
-
-  //if (millis() >= perimeterVirtualMarkerTimeout){
-  //  setNextState(STATE_OFF, 0);
-  //}
-
-  // Update position if we pass over a magnet
-  if (sensorDetected(pinUserSwitch3)) {
-    reverseOrBidir(LEFT);
-    adjustRobotXY();
-    beep(7, true);
-  }
-
-  bool closeToFence = false;
-  bool inside = false;
-  double distanceToClosestFencePost = 100000;
-  int closestFencePost = 0;
-  
-  // asdf
-  // Determine if we are close to one of the fenceposts
-  for (int i=0; i < maxIndex; i++) {
-    int fenceX = fencePosts[i][0];
-    int fenceY = fencePosts[i][1];
-    double distanceToFencePost = getDistanceToObject(fenceX, fenceY);
-    if (distanceToFencePost < distanceToClosestFencePost) {
-      distanceToClosestFencePost = distanceToFencePost;
-      closestFencePost = i;
-    }
-  }
-  if (distanceToClosestFencePost < 100) {
-    closeToFence = true;
-    Console.print(F("Close to fence post: "));
-    Console.println(closestFencePost);
-    Console.print(F("OdometryXY   "));
-    Console.print(odometryX);
-    Console.print(F(" , "));
-    Console.println(odometryY);
-  } 
-  //else if (distanceToClosestMarker > 200) {
-  //  setNextState(STATE_OFF, 0);
-  //}
-
-  // See if we are inside or leaving the fenced area
-  double currentDistanceToCenterOfYard = getDistanceToObject(-300,0);
-  if (closeToFence && (currentDistanceToCenterOfYard > lastDistanceToCenterOfYard)) {
-    // leaving perimeter
-    inside = false;
-    Console.println(F("Leaving Fence"));
-  } else {
-    inside = true;
-  }
-
-  lastDistanceToCenterOfYard = currentDistanceToCenterOfYard;
-  return inside;
-
-  /*
-  // Lookup table to determine if we are outside X/Y
-  // 100cm = 1m
-  // Starting point should be at the first septic disc
-  // Y is only positive from this point
-  // X can go negative or positive
-  int NORTH_BOUNDARY;
-  int WEST_BOUNDARY;
-  int SOUTH_BOUNDARY;
-  int EAST_BOUNDARY;
-  int CIRCLE_WEST;
-  int CIRCLE_NORTH;
-  int TRAMPOLINE_EAST;
-  int TRAMPOLINE_NORTH;
-
-  if (perimeterVirtualIndoorTest) {
-    // Living room
-    // 9 feet long x 7 feet wide
-    NORTH_BOUNDARY = 250;
-    WEST_BOUNDARY = -170;
-    SOUTH_BOUNDARY = 25;
-    EAST_BOUNDARY = 25;   
-  } else {
-    NORTH_BOUNDARY = 800; // 17m
-    WEST_BOUNDARY = -400; //-1500; // 10m
-    SOUTH_BOUNDARY = 20;
-    EAST_BOUNDARY = 100;
-    CIRCLE_WEST = 100;
-    CIRCLE_NORTH = 900;
-    TRAMPOLINE_EAST = -400;
-    TRAMPOLINE_NORTH = 400;
-  }
-
-  return true;
-  
-  if (odometryX > NORTH_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryX-NORTH_BOUNDARY);
-    return false;
-  } else if (odometryX < SOUTH_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryX-SOUTH_BOUNDARY);
-    return false;
-  } else if (odometryY > EAST_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryY-EAST_BOUNDARY);
-    return false;
-  } else if (odometryY < WEST_BOUNDARY) {
-    virtualPerimeterMag = abs(odometryY-WEST_BOUNDARY);    
-    return false;
-  } else {
-    virtualPerimeterMag = virtualPerimeterMag - 100;
-    if (virtualPerimeterMag < -1400) virtualPerimeterMag = -1400;
-    return true;
-  }
-  */
-
-}
-
-void Robot::adjustRobotXY() {
-  perimeterVirtualMarkerTimeout = millis() + (6000 * 100); // 10min
-
-  // Arbitrary high value to start with
-  int closestMarkerDistance = 10000;
-  int closestMarker = 0;
-  int distanceToMarker = 0;
-
-  markerY[0] = 281;
-  markerX[0] = 226;
-
-  markerY[1] = 625;
-  markerX[1] = -72;
-
-  markerY[2] = 5000;
-  markerX[2] = 5000;
-
-  for (int i=0; i<NUM_MARKERS; i++) {
-    //int distX = abs(odometryX-markerX[i]);
-    //int distY = abs(odometryY-markerY[i]);
-
-    distanceToMarker = getDistanceToObject(markerX[i], markerY[i]);
-    if (distanceToMarker < closestMarkerDistance) {
-      // This is the closest marker
-      closestMarkerDistance = distanceToMarker;
-      closestMarker = i;
-    }
-  }
-  //if (closestMarkerDistance < 250) {
-      // 500 = 5m
-      // Update robot X,Y
-      odometryX = markerX[closestMarker];
-      odometryY = markerY[closestMarker];
-
-      // Remember X,Y of closest marker
-      closestMarkerX = odometryX;
-      closestMarkerY = odometryY;
-      //beep(5, true);
-  //}
-}
-
-int Robot::getDistanceToObject(int objectX, int objectY) {
-  int distance;
-  int distX = abs(odometryX-objectX);
-  int distY = abs(odometryY-objectY);
-
-  distance = abs(sqrt(sq(distX) + sq(distY)));
-  return distance;
 }
 
 // check lawn 
@@ -1259,33 +1041,6 @@ void Robot::checkRain(){
       else setNextState(STATE_OFF, 0);    
   }
 }
-
-/*
-void Robot::checkZone(){
-  // Checks to see if we should go to the next Zone
-  if (!gpsUse) return;
-  bool gotoZone1 = false;
-  bool gotoZone2 = false;
-  if (millis() > zone1Timer + (60000)) {
-      if (gpsUse) {
-          float robotLat, robotLon;
-          unsigned long age;
-          gps.f_get_position(&robotLat, &robotLon, &age);
-          float gotoZone2Lat = 30.2397874;  // Metal shed
-          float gotoZone2Lon = -97.9100932
-
-          if ((float)gps.distance_between(robotLat, robotLon, gotoZone2Lat, gotoZone2Lon) < 10) {
-            gotoZone2 = true;
-          }
-      }
-  }
-  if (gotoZone1 || gotoZone2){
-    Console.println(F("Going to Next Zone"));
-    if (perimeterUse) setNextState(STATE_PERI_FIND, 0);    
-      else setNextState(STATE_OFF, 0);    
-  }
-}
-*/
 
 // check sonar
 void Robot::checkSonar(){
@@ -1316,8 +1071,9 @@ void Robot::checkSonar(){
           //Console.println("no sonar");
           sonarObstacleTimeout = 0;
           tempSonarDistCounter = 0;
-          motorLeftSpeedRpmSet *= 1.5;
-          motorRightSpeedRpmSet *= 1.5;
+          //motorLeftSpeedRpmSet *= 1.5;
+          //motorRightSpeedRpmSet *= 1.5;
+          motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm;
         }
    }  
   
@@ -1325,7 +1081,7 @@ void Robot::checkSonar(){
 		if ((sonarDistCenter != NO_ECHO) && (sonarDistCenter < sonarTriggerBelow)) {
 			sonarDistCounter++;   
 			setSensorTriggered(SEN_SONAR_CENTER);
-      if (stateCurr==STATE_PERI_TRACK) {
+      if (false) { //(stateCurr==STATE_PERI_TRACK) {
         // MBK added stop when reach home
         // We have reached home
         setNextState(STATE_OFF, 0);  
@@ -1361,14 +1117,20 @@ void Robot::checkTilt(){
     }
   }
   
-  if(true) return; //(!imuUse) return;    
+  if(!imuUse) return;    
   int pitchAngle = (imu.ypr.pitch/PI*180.0);
   int rollAngle  = (imu.ypr.roll/PI*180.0);
   if ( (stateCurr != STATE_OFF) && (stateCurr != STATE_ERROR) && (stateCurr != STATE_STATION) ){
-    if ( (abs(pitchAngle) > 40) || (abs(rollAngle) > 40) ){
+    if (stateCurr==STATE_FORWARD && (pitchAngle > 4) && (rollAngle) > 4 ) {
+       beep(5, true);
+       // If we are going up and rolling left, we will end up going down and rolling right (which gets us stuck)
+       // So in this case we need to reverse 
+       setMotorPWM( 0, 0, false );  
+       reverseOrBidir(LEFT);
+    } else if ( (abs(pitchAngle) > 40) || (abs(rollAngle) > 40) ){
       Console.println(F("Error: IMU tilt"));
       addErrorCounter(ERR_IMU_TILT);
-			setSensorTriggered(SEN_TILT);
+      setSensorTriggered(SEN_TILT);
       setNextState(STATE_ERROR,0);
     }
   }
@@ -1403,6 +1165,8 @@ void Robot::checkIfStuck(){
         && (stateCurr != STATE_STATION_REV) && (stateCurr != STATE_STATION_ROLL) 
         && (stateCurr != STATE_REMOTE) && (stateCurr != STATE_ERROR)) {
         motorMowEnable = true;
+	// Speed back to normal
+        //motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm;
         errorCounterMax[ERR_STUCK] = 0;
       }
       return;
@@ -1410,6 +1174,9 @@ void Robot::checkIfStuck(){
 
     if (robotIsStuckCounter >= 5){    
       motorMowEnable = false;
+      // Extra power to get unstuck
+      //motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm * 1.5;
+
       if (errorCounterMax[ERR_STUCK] >= 3){   // robot is definately stuck and unable to move
         Console.println(F("Error: Mower is stuck"));
         addErrorCounter(ERR_STUCK);
@@ -1418,17 +1185,15 @@ void Robot::checkIfStuck(){
       }
       else if (errorCounter[ERR_STUCK] < 3) {   // mower tries 3 times to get unstuck
         if (stateCurr == STATE_FORWARD){
-          motorMowEnable = false;
-					addErrorCounter(ERR_STUCK);             
-					setMotorPWM( 0, 0, false );  
-					reverseOrBidir(RIGHT);
-				}
-				else if (stateCurr == STATE_ROLL){
-					motorMowEnable = false;
-					addErrorCounter(ERR_STUCK);             
-					setMotorPWM( 0, 0, false );  
-					setNextState (STATE_FORWARD,0);
-				}
+          addErrorCounter(ERR_STUCK);             
+	  setMotorPWM( 0, 0, false );  
+	  reverseOrBidir(RIGHT);
+	}
+	else if (stateCurr == STATE_ROLL){
+	  addErrorCounter(ERR_STUCK);             
+	  setMotorPWM( 0, 0, false );  
+	  setNextState (STATE_FORWARD,0);
+        }
       }
     }
   }
@@ -1443,6 +1208,8 @@ void Robot::processGPSData()
   unsigned long age;
   gps.f_get_position(&nlat, &nlon, &age);
   if (nlat == GPS::GPS_INVALID_F_ANGLE ) return;
+  robotLat = nlat;
+  robotLon = nlon;
   if (gpsLon == 0){
     gpsLon = nlon;  // this is xy (0,0)
     gpsLat = nlat;
@@ -1456,6 +1223,7 @@ void Robot::checkTimeout(){
   if (stateTime > motorForwTimeMax){ 
     // timeout 
     motorMowSenseErrorCounter = 0;
+
     if (rollDir == RIGHT) setNextState(STATE_REVERSE, LEFT); // toggle roll dir
       else setNextState(STATE_REVERSE, RIGHT);
   }
@@ -1624,9 +1392,16 @@ void Robot::setNextState(byte stateNew, byte dir){
     //loadSaveRobotStats(false);   
   }
   if (stateNew == STATE_PERI_FIND){
-    // find perimeter  => drive half speed      
-    motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;    
-    motorMowEnable = false;     // FIXME: should be an option?
+    headHome = true;
+ 
+    if (closeToHome) {
+      // find perimeter  => drive half speed      
+      motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;    
+      motorMowEnable = false;     // FIXME: should be an option?
+    } else {
+      // Don't go to STATE_PERI_FIND yet...
+      stateNext = stateCurr;
+    }
   }
   if (stateNew == STATE_PERI_TRACK){        
     //motorMowEnable = false;     // FIXME: should be an option?
@@ -1782,23 +1557,33 @@ void Robot::loop()  {
         if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
           else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;                            
       } else if (abs(perimeterMag) >= 500 && motorRightSpeedRpmSet==motorLeftSpeedRpmSet) {
-        // Near perimeter, so turn right
-        // asdf
-        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-        motorRightSpeedRpmSet = motorRightSpeedRpmSet * 0.5;
-      } else if ((abs(perimeterMag) < 500) && motorRightSpeedRpmSet!=motorLeftSpeedRpmSet) {
-        // We are done turning
-        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-      } else if ((abs(perimeterMag) < 500) && (motorMowSense <= 1.0) && (millis() > (lastTimeMotorMowNoGrass + 10000))) {
+        // Near perimeter, so turn randomly left or right
+        lastTimeMotorMowNoGrass = millis();
+        if (random(2) == 0){
+          motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.5;
+	  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
+	} else {
+          motorLeftSpeedRpmSet  = motorSpeedMaxRpm * 0.5;
+	  motorRightSpeedRpmSet = motorSpeedMaxRpm;
+        }
+//      } else if ((abs(perimeterMag) < 500) && ((motorRightSpeedRpmSet==(motorSpeedMaxRpm*0.5)) || (motorLeftSpeedRpmSet==(motorSpeedMaxRpm*0.5)))) {
+//        // We have turned away from the perimeter, based on the perimeter strength
+//        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
+      } else if ((abs(perimeterMag) < 500) && (motorMowSense <= 1.0) && (millis() > (lastTimeMotorMowNoGrass + 20000))) {
         // Not mowing grass...turn slightly
-        beep(4, true);
         lastTimeMotorMowNoGrass = millis();
-        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-        motorLeftSpeedRpmSet = motorLeftSpeedRpmSet * 0.75;
-      } else if ((abs(perimeterMag) < 500) && (millis() > (lastTimeMotorMowNoGrass + 3000))) {
-        // Finish slight turn
+        if (random(2) == 0){
+          motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.75;
+	  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
+	} else {
+          motorLeftSpeedRpmSet  = motorSpeedMaxRpm * 0.75;
+	  motorRightSpeedRpmSet = motorSpeedMaxRpm;
+        }
+      } else if (millis() > (lastTimeMotorMowNoGrass + 6000) ) {
+        // Finish slight turn after 3 seconds
         lastTimeMotorMowNoGrass = millis();
-        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
+        motorRightSpeedRpmSet = motorSpeedMaxRpm;
+	motorLeftSpeedRpmSet  = motorSpeedMaxRpm;
       }
       checkErrorCounter();    
       checkTimer();
@@ -1824,6 +1609,19 @@ void Robot::loop()  {
       // making a roll (left/right)            
       if (mowPatternCurr == MOW_LANES){
         if (abs(distancePI(imu.ypr.yaw, imuRollHeading)) < PI/36) setNextState(STATE_FORWARD,0);				        
+
+      } else if (headHome) {
+          float gpsCourseToHome = gps.course_to(robotLat, robotLon, homeLat, homeLon);
+	  closeToHome = false;
+          if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 5) {
+	    // we can now transition to PERI_FIND
+	    closeToHome = true;
+            setNextState(STATE_PERI_FIND, 0);
+	  } else if  ( (abs(gpsCourseToHome - imu.getHeading()) < 20) || (millis() >= stateEndTime + 20000) ) {
+            // Still far from home
+	    // Keep turning until we are pointing home 
+            setNextState(STATE_FORWARD,0);				          
+	  }
       } else {
         if (millis() >= stateEndTime) {
           setNextState(STATE_FORWARD,0);				          
@@ -1939,7 +1737,7 @@ void Robot::loop()  {
       // track perimeter
       checkCurrent();                  
       checkBumpersPerimeter();
-      checkSonar();  // MBK                 
+      //checkSonar();  // MBK                 
       if (batMonitor){
         if (chgVoltage > 5.0){ 
           setNextState(STATE_STATION, 0);

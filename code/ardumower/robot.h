@@ -215,6 +215,12 @@ class Robot
     float stuckIfGpsSpeedBelow ;
     int gpsSpeedIgnoreTime ; // how long gpsSpeed is ignored when robot switches into a new STATE (in ms)
     int robotIsStuckCounter ;
+    float homeLat;
+    float homeLon;
+    float robotLat;
+    float robotLon;
+    bool headHome;
+    bool closeToHome;
     // -------- odometry state --------------------------
     char odometryUse       ;       // use odometry?
     int wheelDiameter     ;        // wheel diameter (mm)
@@ -372,10 +378,6 @@ class Robot
     // ------- perimeter state --------------------------
     Perimeter perimeter;
     char perimeterUse       ;      // use perimeter?
-    bool perimeterVirtualUse;      // use virtual perimeter (odometry/compass w/ keep-out zones)
-    int perimeterVirtualOffset;
-    unsigned long perimeterVirtualMarkerTimeout;
-    bool perimeterVirtualIndoorTest;
     int maxIndex ;
     int arraySize ;
     float lastDistanceToCenterOfYard;
@@ -584,11 +586,6 @@ class Robot
     
     // GPS
     virtual void processGPSData();
-
-    // Virtual fence
-    virtual bool insideVirtualPerimeter();
-    virtual void adjustRobotXY();
-    virtual int getDistanceToObject(int x, int y);
 
     // read hardware sensor (HAL)
     virtual int readSensor(char type){}    

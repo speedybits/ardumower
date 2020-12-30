@@ -31,7 +31,7 @@ void Robot::calcOdometry(){
 
   //float odometryThetaIMU;
 
-  if (imuUseForTheta || perimeterVirtualUse) {
+  if (imuUseForTheta) {
     // Use IMU to provide Theta (rotation)
     // http://seattlerobotics.org/encoder/200610/Article3/IMU%20Odometry,%20by%20David%20Anderson.htm
     // Incorporating the heading from the IMU is simply a matter of reading the Yaw value from the imum scaling it appropriately, 

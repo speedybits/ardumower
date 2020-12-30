@@ -44,7 +44,7 @@ Mower::Mower(){
   #if defined (ROBOT_ARDUMOWER)
 		motorPowerMax              = 7;        // motor wheel max power (Watt)		  
 		motorSpeedMaxPwm           = 255;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)
-		motorSpeedMaxRpm           = 20;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
+		motorSpeedMaxRpm           = 25;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
 		motorLeftPID.Kp            = 1.5;       // motor wheel PID controller
     motorLeftPID.Ki            = 0.29;
     motorLeftPID.Kd            = 0.25;
@@ -77,7 +77,7 @@ Mower::Mower(){
   // ------ mower motor -------------------------------
   motorMowAccel              = 2000;       // motor mower acceleration (warning: do not set too low) 2000 seems to fit best considerating start time and power consumption 
   motorMowSpeedMaxPwm        = 255;        // motor mower max PWM
-  motorMowPowerMax           = 35.0;       // motor mower max power (Watt)
+  motorMowPowerMax           = 20.0;       // motor mower max power (Watt)
   motorMowModulate           = 0;          // motor mower cutter modulation?
   motorMowRPMSet             = 3300;       // motor mower RPM (only for cutter modulation)
   motorMowSenseScale         = ADC2voltage(1)*1905;    // ADC to mower motor sense milliamp 
@@ -133,7 +133,7 @@ Mower::Mower(){
   lawnSensorUse     = 0;                   // use capacitive lawn Sensor
   
   // ------  IMU (compass/accel/gyro) ----------------------
-  imuUse                     = 0;          // use IMU?
+  imuUse                     = 1;          // use IMU?
   imuCorrectDir              = 0;          // correct direction by compass?
   imuDirPID.Kp               = 5.0;        // direction PID controller
   imuDirPID.Ki               = 1.0;
@@ -147,11 +147,11 @@ Mower::Mower(){
   
   // ------ battery -------------------------------------
   #if defined (ROBOT_ARDUMOWER)
-    batMonitor                 = 0;          // monitor battery and charge voltage?
+    batMonitor                 = 1;          // monitor battery and charge voltage?
 		batSwitchOffIfBelow        = 20.0;       // switch off battery if below voltage (Volt)
 		batGoHomeIfBelow           = 21.0;       // drive home voltage (Volt)  	
-		startChargingIfBelow       = 32.0;      // start charging if battery Voltage is below (99999=disabled)
-		batFull                    = 29.4;      // battery reference Voltage (fully charged) PLEASE ADJUST IF USING A DIFFERENT BATTERY VOLTAGE! FOR a 12V SYSTEM TO 14.4V		
+		startChargingIfBelow       = 99999;      // start charging if battery Voltage is below (99999=disabled)
+		batFull                    = 23.0;      // battery reference Voltage (fully charged) PLEASE ADJUST IF USING A DIFFERENT BATTERY VOLTAGE! FOR a 12V SYSTEM TO 14.4V		
 		batFullCurrent             = 0.1;       // current flowing when battery is fully charged	(amp), (-99999=disabled)	
 	#else  // ROBOT_MINI
 		batMonitor                 = 0;          // monitor battery and charge voltage?
@@ -162,7 +162,7 @@ Mower::Mower(){
 		batFullCurrent             = -99999;       // current flowing when battery is fully charged	(amp), (-99999=disabled)	
 	#endif   
 	
-	chargingTimeout            = 2147483647;  // safety timer for charging (ms) 12600000 = 3.5hrs  (2147483647=disabled)	
+	chargingTimeout            = 12600000;  // safety timer for charging (ms) 12600000 = 3.5hrs  (2147483647=disabled)	
 	
   #if defined (PCB_1_2)     // PCB 1.2	  
 	  batSwitchOffIfIdle         = 0;          // switch off battery if idle (minutes, 0=off) 	
@@ -208,7 +208,7 @@ Mower::Mower(){
   
   // ----- GPS -------------------------------------------
   gpsUse                     = 1;          // use GPS?
-  stuckIfGpsSpeedBelow       = 0.3;        // if Gps speed is below given value the mower is stuck
+  stuckIfGpsSpeedBelow       = 0.2;        // if Gps speed is below given value the mower is stuck
   gpsSpeedIgnoreTime         = 5000;       // how long gpsSpeed is ignored when robot switches into a new STATE (in ms)
 
   // ----- other -----------------------------------------
