@@ -764,13 +764,15 @@ bool IMU::read(){
 
 int IMU::getHeading(){
   int heading=atan2(com.x, com.y)/0.0174532925; //Calculate the degree using X and Y parameters with this formulae
+
+  // Not sure if we need this yet
+  heading = heading - 90;
+
   //Convert result into 0 to 360
   if(heading < 0)
   heading+=360;
   heading = 360-heading;
 
-  // Without this, instead of 0 we get 270
-  heading = heading + 90;
   if (heading >= 360) {
     heading = heading - 360;
   }

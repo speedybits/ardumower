@@ -42,7 +42,7 @@ Mower::Mower(){
   // ------- wheel motors -----------------------------
   motorAccel                 = 1000;      // motor wheel acceleration - only functional when odometry is not in use (warning: do not set too low)
   #if defined (ROBOT_ARDUMOWER)
-		motorPowerMax              = 7;        // motor wheel max power (Watt)		  
+		motorPowerMax              = 12;        // motor wheel max power (Watt)		  
 		motorSpeedMaxPwm           = 255;       // motor wheel max Pwm  (8-bit PWM=255, 10-bit PWM=1023)
 		motorSpeedMaxRpm           = 25;        // motor wheel max RPM (WARNING: do not set too high, so there's still speed control when battery is low!)
 		motorLeftPID.Kp            = 1.5;       // motor wheel PID controller
@@ -77,7 +77,7 @@ Mower::Mower(){
   // ------ mower motor -------------------------------
   motorMowAccel              = 2000;       // motor mower acceleration (warning: do not set too low) 2000 seems to fit best considerating start time and power consumption 
   motorMowSpeedMaxPwm        = 255;        // motor mower max PWM
-  motorMowPowerMax           = 20.0;       // motor mower max power (Watt)
+  motorMowPowerMax           = 25.0;       // motor mower max power (Watt)
   motorMowModulate           = 0;          // motor mower cutter modulation?
   motorMowRPMSet             = 3300;       // motor mower RPM (only for cutter modulation)
   motorMowSenseScale         = ADC2voltage(1)*1905;    // ADC to mower motor sense milliamp 
@@ -110,8 +110,8 @@ Mower::Mower(){
   // ------ perimeter ---------------------------------
   perimeterUse               = 1;          // use perimeter?    
   perimeterTriggerTimeout    = 0;          // perimeter trigger timeout when escaping from inside (ms)  
-  perimeterOutRollTimeMax    = 5000;       // roll time max after perimeter out (ms)
-  perimeterOutRollTimeMin    = 2000;        // roll time min after perimeter out (ms)
+  perimeterOutRollTimeMax    = 3000;       // roll time max after perimeter out (ms)
+  perimeterOutRollTimeMin    = 1500;        // roll time min after perimeter out (ms)
   perimeterOutRevTime        = 2200;       // reverse time after perimeter out (ms)
   perimeterTrackRollTime     = 1500;       // roll time during perimeter tracking
   perimeterTrackRevTime      = 2200;       // reverse time during perimeter tracking

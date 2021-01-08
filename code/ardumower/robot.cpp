@@ -236,10 +236,12 @@ Robot::Robot(){
   rmcsInfoLastSendPeri = 0;
 
   // GPS
-      homeLat = 30.2396751; // Shepherds hook 
-      homeLon = -97.9099045;
-      headHome = false;
-      closeToHome = false;
+  homeLat = 30.2398005;
+  homeLon = -97.9096279;
+  headHome = false;
+  closeToHome = false;
+  pointingHome = false;
+  justTurned = false;
 }
 
 const char *Robot::mowPatternName(){
@@ -453,6 +455,7 @@ void Robot::checkButton(){
           motorMowEnable = true;
           headHome = false;
 	  closeToHome = false;
+	  pointingHome = false;
           odometryX = 0;
           odometryY = 0;
           //motorMowModulate = true;                     
@@ -810,6 +813,7 @@ void Robot::checkCurrent(){
   {
     if (motorLeftSense >= motorPowerMax)
     {
+	motorMowEnable = false;
        motorLeftSenseCounter++;
 			 setSensorTriggered(SEN_MOTOR_LEFT);
        setMotorPWM( 0, 0, false );
@@ -819,6 +823,7 @@ void Robot::checkCurrent(){
     }
     if (motorRightSense >= motorPowerMax)
     {
+	motorMowEnable = false;
        motorRightSenseCounter++;
 			 setSensorTriggered(SEN_MOTOR_RIGHT);
 			 setMotorPWM( 0, 0, false );
@@ -829,6 +834,7 @@ void Robot::checkCurrent(){
   }
 
   if (motorMowSense >= motorMowPowerMax){
+	motorMowEnable = false;
     motorMowSenseCounter++;
 		setSensorTriggered(SEN_MOTOR_MOW);
   }
@@ -1077,30 +1083,24 @@ void Robot::checkSonar(){
         }
    }  
   
-	 if (sonarTriggerBelow != 0){
-		if ((sonarDistCenter != NO_ECHO) && (sonarDistCenter < sonarTriggerBelow)) {
+   if (sonarTriggerBelow != 0){
+     if ((sonarDistCenter != NO_ECHO) && (sonarDistCenter < sonarTriggerBelow)) {
 			sonarDistCounter++;   
 			setSensorTriggered(SEN_SONAR_CENTER);
-      if (false) { //(stateCurr==STATE_PERI_TRACK) {
-        // MBK added stop when reach home
-        // We have reached home
-        setNextState(STATE_OFF, 0);  
-      } else {
-			  if (rollDir == RIGHT) reverseOrBidir(LEFT); // toggle roll dir
-				else reverseOrBidir(RIGHT);    
-      }
-		}
-		if ((sonarDistRight != NO_ECHO) && (sonarDistRight < sonarTriggerBelow)){
+         if (rollDir == RIGHT) reverseOrBidir(LEFT); // toggle roll dir
+         else reverseOrBidir(RIGHT);    
+     }
+     if ((sonarDistRight != NO_ECHO) && (sonarDistRight < sonarTriggerBelow)){
 			sonarDistCounter++;
 			setSensorTriggered(SEN_SONAR_RIGHT);
 			reverseOrBidir(LEFT);
-		}
-		if ((sonarDistLeft != NO_ECHO) && (sonarDistLeft < sonarTriggerBelow)){
+     }
+     if ((sonarDistLeft != NO_ECHO) && (sonarDistLeft < sonarTriggerBelow)){
 			sonarDistCounter++; 
 			setSensorTriggered(SEN_SONAR_LEFT);
 			reverseOrBidir(RIGHT);
-		}
-	}
+     }
+   }
 }
 
 
@@ -1121,13 +1121,13 @@ void Robot::checkTilt(){
   int pitchAngle = (imu.ypr.pitch/PI*180.0);
   int rollAngle  = (imu.ypr.roll/PI*180.0);
   if ( (stateCurr != STATE_OFF) && (stateCurr != STATE_ERROR) && (stateCurr != STATE_STATION) ){
-    if (stateCurr==STATE_FORWARD && (pitchAngle > 4) && (rollAngle) > 4 ) {
-       beep(5, true);
-       // If we are going up and rolling left, we will end up going down and rolling right (which gets us stuck)
+    if (stateCurr==STATE_FORWARD && (pitchAngle >= 15) ) {
+       // If we are going up too steep... we will end up going down and rolling right (which gets us stuck)
        // So in this case we need to reverse 
        setMotorPWM( 0, 0, false );  
        reverseOrBidir(LEFT);
     } else if ( (abs(pitchAngle) > 40) || (abs(rollAngle) > 40) ){
+      motorMowEnable = false;
       Console.println(F("Error: IMU tilt"));
       addErrorCounter(ERR_IMU_TILT);
       setSensorTriggered(SEN_TILT);
@@ -1164,9 +1164,7 @@ void Robot::checkIfStuck(){
         && (stateCurr != STATE_STATION_CHARGING) && (stateCurr != STATE_STATION_CHECK) 
         && (stateCurr != STATE_STATION_REV) && (stateCurr != STATE_STATION_ROLL) 
         && (stateCurr != STATE_REMOTE) && (stateCurr != STATE_ERROR)) {
-        motorMowEnable = true;
-	// Speed back to normal
-        //motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm;
+	    motorMowEnable = true;
         errorCounterMax[ERR_STUCK] = 0;
       }
       return;
@@ -1174,16 +1172,18 @@ void Robot::checkIfStuck(){
 
     if (robotIsStuckCounter >= 5){    
       motorMowEnable = false;
-      // Extra power to get unstuck
-      //motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm * 1.5;
 
-      if (errorCounterMax[ERR_STUCK] >= 3){   // robot is definately stuck and unable to move
+      if (errorCounterMax[ERR_STUCK] >= 6){   // robot is definately stuck and unable to move
         Console.println(F("Error: Mower is stuck"));
         addErrorCounter(ERR_STUCK);
         setNextState(STATE_ERROR,0);    //mower is switched into ERROR
         //robotIsStuckCounter = 0;
-      }
-      else if (errorCounter[ERR_STUCK] < 3) {   // mower tries 3 times to get unstuck
+      } else if (errorCounterMax[ERR_STUCK] >= 3){
+	  // Try going forward again
+          addErrorCounter(ERR_STUCK);             
+	  setMotorPWM( 0, 0, false );  
+	  setNextState (STATE_FORWARD,0);
+      } else if (errorCounter[ERR_STUCK] < 3) {   // mower tries 3 times to get unstuck
         if (stateCurr == STATE_FORWARD){
           addErrorCounter(ERR_STUCK);             
 	  setMotorPWM( 0, 0, false );  
@@ -1217,6 +1217,17 @@ void Robot::processGPSData()
   }
   gpsX = (float)gps.distance_between(nlat,  gpsLon,  gpsLat, gpsLon);
   gpsY = (float)gps.distance_between(gpsLat, nlon,   gpsLat, gpsLon);
+  float gpsCourseToHome = gps.course_to(robotLat, robotLon, homeLat, homeLon);
+  if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 9) {
+    closeToHome = true;
+  } else {
+    closeToHome = false;
+  }
+  if  ( (abs(gpsCourseToHome - imu.getHeading()) < 20) ) {
+    pointingHome = true;
+  } else {
+    pointingHome = false;
+  }
 }
 
 void Robot::checkTimeout(){
@@ -1268,7 +1279,6 @@ void Robot::setNextState(byte stateNew, byte dir){
     stateEndTime = millis() + stationRollTime + motorZeroSettleTime;                     
   } else if (stateNew == STATE_STATION_FORW){
     motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm;      
-    motorMowEnable = true;    
     stateEndTime = millis() + stationForwTime + motorZeroSettleTime;                     
   } else if (stateNew == STATE_STATION_CHECK){
     motorLeftSpeedRpmSet = motorRightSpeedRpmSet = -motorSpeedMaxRpm/2; 
@@ -1393,22 +1403,21 @@ void Robot::setNextState(byte stateNew, byte dir){
   }
   if (stateNew == STATE_PERI_FIND){
     headHome = true;
- 
     if (closeToHome) {
       // find perimeter  => drive half speed      
       motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;    
       motorMowEnable = false;     // FIXME: should be an option?
     } else {
-      // Don't go to STATE_PERI_FIND yet...
-      stateNext = stateCurr;
+      // Don't find perimeter yet
+      stateNext=stateCurr; 
     }
   }
   if (stateNew == STATE_PERI_TRACK){        
-    //motorMowEnable = false;     // FIXME: should be an option?
-    perimeterMagMaxValue = perimeterMagMedian.getHighest();
-    setActuator(ACT_CHGRELAY, 0);
-    perimeterPID.reset();
-    //beep(6);
+      //motorMowEnable = false;     // FIXME: should be an option?
+      perimeterMagMaxValue = perimeterMagMedian.getHighest();
+      setActuator(ACT_CHGRELAY, 0);
+      perimeterPID.reset();
+      //beep(6);
   }   
   if (stateNew != STATE_REMOTE){
     motorMowSpeedPWMSet = motorMowSpeedMaxPwm;
@@ -1448,7 +1457,7 @@ void Robot::loop()  {
   checkButton(); 
   motorMowControl(); 
   checkTilt(); 
-  
+
   if (imuUse) imu.update();  
 
   if (gpsUse) { 
@@ -1504,20 +1513,22 @@ void Robot::loop()  {
       // tilt      
       if (millis() >= nextTimeErrorBeep){
         nextTimeErrorBeep = millis() + 1000;
-        beep(1, true);
+        //beep(1, true);
       }	
 		  if (millis() >= stateStartTime + 10000)  setNextState(STATE_OFF, 0);
 			if (!tilt) setNextState(stateLast, 0);
       break;
     case STATE_ERROR:
+      motorMowEnable = false;
       // fatal-error
       if (millis() >= nextTimeErrorBeep){
         nextTimeErrorBeep = millis() + 5000;
-        beep(1, true);
+        //beep(1, true);
       }			      
       break;
     case STATE_OFF:
       // robot is turned off      
+      motorMowEnable = false;
       //checkTimer();   // deactivated due to safety issues. when mower is off it should stay off. timer is only active when mower is n STATE_STATION.
       if (batMonitor && (millis()-stateStartTime>2000)){
         if (chgVoltage > 5.0) {
@@ -1556,7 +1567,9 @@ void Robot::loop()  {
         if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
         if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
           else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;                            
-      } else if (abs(perimeterMag) >= 500 && motorRightSpeedRpmSet==motorLeftSpeedRpmSet) {
+      } else if (false) { //(headHome==true && closeToHome==false && pointingHome==false) {
+          setNextState(STATE_ROLL,RIGHT);				          
+      } else if (false) { //(abs(perimeterMag) >= 500 && motorRightSpeedRpmSet==motorLeftSpeedRpmSet) {
         // Near perimeter, so turn randomly left or right
         lastTimeMotorMowNoGrass = millis();
         if (random(2) == 0){
@@ -1569,9 +1582,10 @@ void Robot::loop()  {
 //      } else if ((abs(perimeterMag) < 500) && ((motorRightSpeedRpmSet==(motorSpeedMaxRpm*0.5)) || (motorLeftSpeedRpmSet==(motorSpeedMaxRpm*0.5)))) {
 //        // We have turned away from the perimeter, based on the perimeter strength
 //        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-      } else if ((abs(perimeterMag) < 500) && (motorMowSense <= 1.0) && (millis() > (lastTimeMotorMowNoGrass + 20000))) {
+      } else if ((abs(perimeterMag) < 500) && (motorMowSense <= 1.0) && (justTurned==false) && (millis() > (lastTimeMotorMowNoGrass + 20000))) {
         // Not mowing grass...turn slightly
         lastTimeMotorMowNoGrass = millis();
+	justTurned = true;
         if (random(2) == 0){
           motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.75;
 	  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
@@ -1579,9 +1593,10 @@ void Robot::loop()  {
           motorLeftSpeedRpmSet  = motorSpeedMaxRpm * 0.75;
 	  motorRightSpeedRpmSet = motorSpeedMaxRpm;
         }
-      } else if (millis() > (lastTimeMotorMowNoGrass + 6000) ) {
+      } else if ((justTurned==true) && (millis() > (lastTimeMotorMowNoGrass + 3000)) ) {
         // Finish slight turn after 3 seconds
         lastTimeMotorMowNoGrass = millis();
+	justTurned = false;
         motorRightSpeedRpmSet = motorSpeedMaxRpm;
 	motorLeftSpeedRpmSet  = motorSpeedMaxRpm;
       }
@@ -1610,17 +1625,13 @@ void Robot::loop()  {
       if (mowPatternCurr == MOW_LANES){
         if (abs(distancePI(imu.ypr.yaw, imuRollHeading)) < PI/36) setNextState(STATE_FORWARD,0);				        
 
-      } else if (headHome) {
-          float gpsCourseToHome = gps.course_to(robotLat, robotLon, homeLat, homeLon);
-	  closeToHome = false;
-          if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 5) {
-	    // we can now transition to PERI_FIND
-	    closeToHome = true;
-            setNextState(STATE_PERI_FIND, 0);
-	  } else if  ( (abs(gpsCourseToHome - imu.getHeading()) < 20) || (millis() >= stateEndTime + 20000) ) {
-            // Still far from home
-	    // Keep turning until we are pointing home 
-            setNextState(STATE_FORWARD,0);				          
+      } else if (false) { //(headHome) {
+	  if (closeToHome && pointingHome) {
+	      // we can now transition to PERI_FIND
+              setNextState(STATE_PERI_FIND, 0);
+	  } else if  ( ((closeToHome==false) && pointingHome) || (millis() >= stateEndTime + 10000) ) {
+	      // Keep turning until we are pointing home 
+              setNextState(STATE_FORWARD,0);	
 	  }
       } else {
         if (millis() >= stateEndTime) {
@@ -1729,6 +1740,9 @@ void Robot::loop()  {
         checkBumpersPerimeter();
         checkSonar();                           
       }  
+      if (headHome==false) {
+          setNextState(STATE_FORWARD,0);				          
+      }
       checkPerimeterBoundary();
       checkPerimeterFind();      
       checkTimeout();                    

@@ -221,6 +221,8 @@ class Robot
     float robotLon;
     bool headHome;
     bool closeToHome;
+    bool pointingHome;
+    bool justTurned;
     // -------- odometry state --------------------------
     char odometryUse       ;       // use odometry?
     int wheelDiameter     ;        // wheel diameter (mm)
@@ -557,6 +559,8 @@ class Robot
     int markerX[3];
     int markerY[3];
     int NUM_MARKERS = 3;
+
+    int badStuffCount;
 
     // --------------------------------------------------
     Robot();
