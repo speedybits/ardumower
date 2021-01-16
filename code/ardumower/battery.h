@@ -28,7 +28,7 @@ void Robot::checkBattery(){
       }
       setActuator(ACT_BATTERY_SW, 0);  // switch off battery                     
     }
-    else if ((batVoltage < batGoHomeIfBelow) && (stateCurr == STATE_FORWARD) 
+    else if ((closeToTrack==true) && (batVoltage < batGoHomeIfBelow) && (stateCurr == STATE_FORWARD) 
 			&& (perimeterUse)) {    //UNTESTED please verify
       Console.print(F("triggered batGoHomeIfBelow "));
 			Console.print(batVoltage);

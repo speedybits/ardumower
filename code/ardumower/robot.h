@@ -217,10 +217,13 @@ class Robot
     int robotIsStuckCounter ;
     float homeLat;
     float homeLon;
+    float trackLat;
+    float trackLon;
     float robotLat;
     float robotLon;
     bool headHome;
     bool closeToHome;
+    bool closeToTrack;
     bool pointingHome;
     bool justTurned;
     // -------- odometry state --------------------------

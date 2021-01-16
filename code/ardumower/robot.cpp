@@ -236,10 +236,13 @@ Robot::Robot(){
   rmcsInfoLastSendPeri = 0;
 
   // GPS
-  homeLat = 30.2398005;
-  homeLon = -97.9096279;
+  trackLat = 30.2398005;
+  trackLon = -97.9096279;
+  homeLat = 30.2396360;
+  homeLon = -97.9099376;
   headHome = false;
   closeToHome = false;
+  closeToTrack = false;
   pointingHome = false;
   justTurned = false;
 }
@@ -455,6 +458,7 @@ void Robot::checkButton(){
           motorMowEnable = true;
           headHome = false;
 	  closeToHome = false;
+	  closeToTrack = false;
 	  pointingHome = false;
           odometryX = 0;
           odometryY = 0;
@@ -841,7 +845,7 @@ void Robot::checkCurrent(){
   else{ 
       errorCounterMax[ERR_MOW_SENSE] = 0;
       motorMowSenseCounter = 0;
-      if ( (lastTimeMotorMowStuck != 0) && (millis() >= lastTimeMotorMowStuck + 30000) ) { // wait 30 seconds before switching on again
+      if ( (lastTimeMotorMowStuck != 0) && (millis() >= lastTimeMotorMowStuck + 15000) ) { // wait 15 seconds before switching on again
         errorCounter[ERR_MOW_SENSE] = 0;
         motorMowEnable = true;
 				lastTimeMotorMowStuck = 0;
@@ -1218,7 +1222,13 @@ void Robot::processGPSData()
   gpsX = (float)gps.distance_between(nlat,  gpsLon,  gpsLat, gpsLon);
   gpsY = (float)gps.distance_between(gpsLat, nlon,   gpsLat, gpsLon);
   float gpsCourseToHome = gps.course_to(robotLat, robotLon, homeLat, homeLon);
-  if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 9) {
+
+  if ((float)gps.distance_between(robotLat, robotLon, trackLat, trackLon) < 9) {
+    closeToTrack = true; // Also used in battery.h
+  } else {
+    closeToTrack = false;
+  }
+  if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 4) {
     closeToHome = true;
   } else {
     closeToHome = false;
@@ -1279,6 +1289,7 @@ void Robot::setNextState(byte stateNew, byte dir){
     stateEndTime = millis() + stationRollTime + motorZeroSettleTime;                     
   } else if (stateNew == STATE_STATION_FORW){
     motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm;      
+    motorMowEnable = true;
     stateEndTime = millis() + stationForwTime + motorZeroSettleTime;                     
   } else if (stateNew == STATE_STATION_CHECK){
     motorLeftSpeedRpmSet = motorRightSpeedRpmSet = -motorSpeedMaxRpm/2; 
@@ -1402,15 +1413,9 @@ void Robot::setNextState(byte stateNew, byte dir){
     //loadSaveRobotStats(false);   
   }
   if (stateNew == STATE_PERI_FIND){
-    headHome = true;
-    if (closeToHome) {
-      // find perimeter  => drive half speed      
-      motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;    
-      motorMowEnable = false;     // FIXME: should be an option?
-    } else {
-      // Don't find perimeter yet
-      stateNext=stateCurr; 
-    }
+    // find perimeter  => drive half speed      
+    motorLeftSpeedRpmSet = motorRightSpeedRpmSet = motorSpeedMaxRpm / 1.5;    
+    //motorMowEnable = false;     // FIXME: should be an option?
   }
   if (stateNew == STATE_PERI_TRACK){        
       //motorMowEnable = false;     // FIXME: should be an option?
@@ -1740,7 +1745,7 @@ void Robot::loop()  {
         checkBumpersPerimeter();
         checkSonar();                           
       }  
-      if (headHome==false) {
+      if (closeToTrack==false) {
           setNextState(STATE_FORWARD,0);				          
       }
       checkPerimeterBoundary();
@@ -1751,7 +1756,9 @@ void Robot::loop()  {
       // track perimeter
       checkCurrent();                  
       checkBumpersPerimeter();
-      //checkSonar();  // MBK                 
+      if (closeToHome==true) {
+          setNextState(STATE_OFF,0);				          
+      }
       if (batMonitor){
         if (chgVoltage > 5.0){ 
           setNextState(STATE_STATION, 0);
