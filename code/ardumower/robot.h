@@ -224,7 +224,6 @@ class Robot
     bool headHome;
     bool closeToHome;
     bool closeToTrack;
-    bool pointingHome;
     bool justTurned;
     // -------- odometry state --------------------------
     char odometryUse       ;       // use odometry?

@@ -243,7 +243,6 @@ Robot::Robot(){
   headHome = false;
   closeToHome = false;
   closeToTrack = false;
-  pointingHome = false;
   justTurned = false;
 }
 
@@ -459,7 +458,6 @@ void Robot::checkButton(){
           headHome = false;
 	  closeToHome = false;
 	  closeToTrack = false;
-	  pointingHome = false;
           odometryX = 0;
           odometryY = 0;
           //motorMowModulate = true;                     
@@ -1233,11 +1231,6 @@ void Robot::processGPSData()
   } else {
     closeToHome = false;
   }
-  if  ( (abs(gpsCourseToHome - imu.getHeading()) < 20) ) {
-    pointingHome = true;
-  } else {
-    pointingHome = false;
-  }
 }
 
 void Robot::checkTimeout(){
@@ -1572,8 +1565,6 @@ void Robot::loop()  {
         if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
         if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
           else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;                            
-      } else if (false) { //(headHome==true && closeToHome==false && pointingHome==false) {
-          setNextState(STATE_ROLL,RIGHT);				          
       } else if (false) { //(abs(perimeterMag) >= 500 && motorRightSpeedRpmSet==motorLeftSpeedRpmSet) {
         // Near perimeter, so turn randomly left or right
         lastTimeMotorMowNoGrass = millis();
@@ -1626,18 +1617,8 @@ void Robot::loop()  {
       //checkSonar();             
       checkPerimeterBoundary(); 
       checkLawn();
-      // making a roll (left/right)            
       if (mowPatternCurr == MOW_LANES){
         if (abs(distancePI(imu.ypr.yaw, imuRollHeading)) < PI/36) setNextState(STATE_FORWARD,0);				        
-
-      } else if (false) { //(headHome) {
-	  if (closeToHome && pointingHome) {
-	      // we can now transition to PERI_FIND
-              setNextState(STATE_PERI_FIND, 0);
-	  } else if  ( ((closeToHome==false) && pointingHome) || (millis() >= stateEndTime + 10000) ) {
-	      // Keep turning until we are pointing home 
-              setNextState(STATE_FORWARD,0);	
-	  }
       } else {
         if (millis() >= stateEndTime) {
           setNextState(STATE_FORWARD,0);				          
