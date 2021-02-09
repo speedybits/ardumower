@@ -238,8 +238,8 @@ Robot::Robot(){
   // GPS
   trackLat = 30.2398005;
   trackLon = -97.9096279;
-  homeLat = 30.2396360;
-  homeLon = -97.9099376;
+  homeLat = 30.2395986;
+  homeLon = -97.9099789;
   headHome = false;
   closeToHome = false;
   closeToTrack = false;
@@ -460,6 +460,7 @@ void Robot::checkButton(){
 	  closeToTrack = false;
           odometryX = 0;
           odometryY = 0;
+	  perimThreshold = 400;
           //motorMowModulate = true;                     
           mowPatternCurr = MOW_RANDOM;   
           setNextState(STATE_FORWARD, 0);                
@@ -1123,7 +1124,7 @@ void Robot::checkTilt(){
   int pitchAngle = (imu.ypr.pitch/PI*180.0);
   int rollAngle  = (imu.ypr.roll/PI*180.0);
   if ( (stateCurr != STATE_OFF) && (stateCurr != STATE_ERROR) && (stateCurr != STATE_STATION) ){
-    if (stateCurr==STATE_FORWARD && (pitchAngle >= 15) ) {
+    if (stateCurr==STATE_FORWARD && (pitchAngle >= 10) ) {
        // If we are going up too steep... we will end up going down and rolling right (which gets us stuck)
        // So in this case we need to reverse 
        setMotorPWM( 0, 0, false );  
@@ -1222,11 +1223,12 @@ void Robot::processGPSData()
   float gpsCourseToHome = gps.course_to(robotLat, robotLon, homeLat, homeLon);
 
   if ((float)gps.distance_between(robotLat, robotLon, trackLat, trackLon) < 9) {
-    closeToTrack = true; // Also used in battery.h
+    closeToTrack = false;
+    //closeToTrack = true; // Also used in battery.h
   } else {
     closeToTrack = false;
   }
-  if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 4) {
+  if ((float)gps.distance_between(robotLat, robotLon, homeLat, homeLon) < 2) {
     closeToHome = true;
   } else {
     closeToHome = false;
@@ -1565,32 +1567,35 @@ void Robot::loop()  {
         if (stateTime > 4000) ratio = motorBiDirSpeedRatio2;
         if (rollDir == RIGHT) motorRightSpeedRpmSet = ((double)motorLeftSpeedRpmSet) * ratio;
           else motorLeftSpeedRpmSet = ((double)motorRightSpeedRpmSet) * ratio;                            
-      } else if (false) { //(abs(perimeterMag) >= 500 && motorRightSpeedRpmSet==motorLeftSpeedRpmSet) {
+      } else if (closeToHome==true && (batVoltage < batGoHomeIfBelow)) {
+          setNextState(STATE_OFF,0);				          
+      } else if ((abs(perimeterMag) >= perimThreshold) && (justTurned==false) && motorRightSpeedRpmSet==motorLeftSpeedRpmSet) {
         // Near perimeter, so turn randomly left or right
         lastTimeMotorMowNoGrass = millis();
-        if (random(2) == 0){
-          motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.5;
-	  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-	} else {
-          motorLeftSpeedRpmSet  = motorSpeedMaxRpm * 0.5;
+	justTurned = true;
+        //if (random(2) == 0){
+        //  motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.35;
+	//  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
+	//} else {
+          motorLeftSpeedRpmSet  = motorSpeedMaxRpm * 0.35;
 	  motorRightSpeedRpmSet = motorSpeedMaxRpm;
-        }
-//      } else if ((abs(perimeterMag) < 500) && ((motorRightSpeedRpmSet==(motorSpeedMaxRpm*0.5)) || (motorLeftSpeedRpmSet==(motorSpeedMaxRpm*0.5)))) {
+        //}
+//      } else if ((abs(perimeterMag) < perimThreshold) && (motorRightSpeedRpmSet!=motorLeftSpeedRpmSet)) {
 //        // We have turned away from the perimeter, based on the perimeter strength
 //        motorRightSpeedRpmSet = motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-      } else if ((abs(perimeterMag) < 500) && (motorMowSense <= 1.0) && (justTurned==false) && (millis() > (lastTimeMotorMowNoGrass + 20000))) {
+      } else if ((abs(perimeterMag) < perimThreshold) && (motorMowSense <= 1.0) && (justTurned==false) && (millis() > (lastTimeMotorMowNoGrass + 20000))) {
         // Not mowing grass...turn slightly
         lastTimeMotorMowNoGrass = millis();
 	justTurned = true;
-        if (random(2) == 0){
-          motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.75;
-	  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
-	} else {
+        //if (random(2) == 0){
+        //  motorRightSpeedRpmSet = motorSpeedMaxRpm * 0.75;
+	//  motorLeftSpeedRpmSet = motorSpeedMaxRpm;
+	//} else {
           motorLeftSpeedRpmSet  = motorSpeedMaxRpm * 0.75;
 	  motorRightSpeedRpmSet = motorSpeedMaxRpm;
-        }
-      } else if ((justTurned==true) && (millis() > (lastTimeMotorMowNoGrass + 3000)) ) {
-        // Finish slight turn after 3 seconds
+        //}
+      } else if ((justTurned==true) && (millis() > (lastTimeMotorMowNoGrass + 2000)) && (abs(perimeterMag) < perimThreshold))) {
+        // Finish turn after 3 seconds as long as perimeterMag is less than perimThreshold 
         lastTimeMotorMowNoGrass = millis();
 	justTurned = false;
         motorRightSpeedRpmSet = motorSpeedMaxRpm;

@@ -562,7 +562,7 @@ class Robot
     int markerY[3];
     int NUM_MARKERS = 3;
 
-    int badStuffCount;
+    int perimThreshold = 500;
 
     // --------------------------------------------------
     Robot();
